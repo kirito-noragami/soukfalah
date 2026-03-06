@@ -1,0 +1,30 @@
+.quantity-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 12px;
+  border: 1px solid #e1d4c2;
+  background: #fdfbf7;
+  min-height: 44px;
+}
+
+.quantity-selector__button {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  border: none;
+  background: #f3eadb;
+  color: #3a463a;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.quantity-selector__value {
+  min-width: 18px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #223223;
+}

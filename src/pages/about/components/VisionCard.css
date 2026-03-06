@@ -1,0 +1,66 @@
+.vision-card {
+  background: #fffdf9;
+  border-radius: 18px;
+  border: 1px solid #eadfce;
+  overflow: hidden;
+  box-shadow: 0 16px 26px rgba(32, 40, 32, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.vision-card__media {
+  height: 140px;
+  background-image: linear-gradient(
+      120deg,
+      rgba(255, 255, 255, 0.75),
+      rgba(255, 255, 255, 0.2)
+    ),
+    var(--about-fields-image);
+  background-size: cover;
+  background-position: center;
+  border-bottom: 1px solid rgba(216, 205, 186, 0.7);
+}
+
+.vision-card__body {
+  padding: 16px 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vision-card__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vision-card__title h2 {
+  margin: 0;
+  font-size: 19px;
+  color: #223223;
+}
+
+.vision-card__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: #f3eadb;
+  color: #2f4b31;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e1d4c2;
+}
+
+.vision-card__icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.vision-card__body p {
+  margin: 0;
+  font-size: 14px;
+  color: #5a665a;
+  line-height: 1.6;
+}

@@ -1,0 +1,1017 @@
+.app-route-layer {
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
+}
+
+/* Prevent page-level negative margins from pulling the footer over content. */
+.app-main .app-route-view > * {
+  margin-bottom: 0 !important;
+}
+
+.app-route-view {
+  position: relative;
+  z-index: 2;
+  will-change: opacity, transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  contain: layout paint;
+  animation: routeViewIn 420ms cubic-bezier(0.22, 0.9, 0.22, 1) both;
+  view-transition-name: app-route;
+}
+
+.app-route-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -6px;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(95, 134, 84, 0),
+    rgba(95, 134, 84, 0.45),
+    rgba(95, 134, 84, 0)
+  );
+  opacity: 0;
+  transform: scaleX(0.08);
+  transform-origin: left center;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.app-route-glow {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -10px;
+  height: 30px;
+  border-radius: 999px;
+  background: radial-gradient(
+    ellipse at 35% 50%,
+    rgba(190, 220, 170, 0.26),
+    rgba(190, 220, 170, 0) 64%
+  );
+  opacity: 0;
+  filter: blur(8px);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.app-route-layer.is-routing .app-route-progress {
+  opacity: 1;
+  animation: routeProgressPulse 460ms cubic-bezier(0.22, 0.9, 0.22, 1) both;
+}
+
+.app-route-layer.is-routing .app-route-glow {
+  opacity: 1;
+  animation: routeGlowSweep 460ms cubic-bezier(0.22, 0.9, 0.22, 1) both;
+}
+
+.app-route-layer.is-routing .app-route-view {
+  animation-duration: 420ms;
+}
+
+@keyframes routeViewIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale(0.9985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes routeProgressPulse {
+  0% {
+    opacity: 0;
+    transform: scaleX(0.08);
+  }
+
+  22% {
+    opacity: 1;
+    transform: scaleX(0.28);
+  }
+
+  74% {
+    opacity: 1;
+    transform: scaleX(0.94);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes routeGlowSweep {
+  0% {
+    opacity: 0;
+    transform: translate3d(-10px, 0, 0);
+  }
+
+  35% {
+    opacity: 0.8;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(16px, 0, 0);
+  }
+}
+
+@supports (view-transition-name: app-route) {
+  ::view-transition-group(app-route) {
+    animation-duration: 420ms;
+    animation-timing-function: cubic-bezier(0.22, 0.9, 0.22, 1);
+  }
+
+  ::view-transition-old(app-route),
+  ::view-transition-new(app-route) {
+    animation-duration: 420ms;
+    animation-timing-function: cubic-bezier(0.22, 0.9, 0.22, 1);
+    mix-blend-mode: normal;
+  }
+
+  ::view-transition-old(app-route) {
+    animation-name: routeViewTransitionOut;
+  }
+
+  ::view-transition-new(app-route) {
+    animation-name: routeViewTransitionIn;
+  }
+}
+
+@keyframes routeViewTransitionOut {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translate3d(0, -4px, 0) scale(0.998);
+  }
+}
+
+@keyframes routeViewTransitionIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(1.002);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.app-main > :is(
+    .home-page,
+    .marketplace-page,
+    .map-view,
+    .farm-page,
+    .product-details,
+    .cart-page,
+    .checkout-page,
+    .contact-page,
+    .about-page,
+    .auth-page,
+    .buyer-dashboard,
+    .farmer-dashboard,
+    .admin-dashboard
+  ) {
+  animation-duration: 0.65s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.app-main > :is(
+    .marketplace-page,
+    .map-view,
+    .farm-page,
+    .product-details,
+    .cart-page,
+    .checkout-page,
+    .contact-page,
+    .about-page,
+    .buyer-dashboard,
+    .farmer-dashboard,
+    .admin-dashboard
+  )::before {
+  filter: saturate(1.08);
+}
+
+.app-main :is(
+    .home-hero,
+    .marketplace-hero,
+    .about-hero,
+    .contact-hero,
+    .contact-banner,
+    .cart-hero,
+    .checkout-hero,
+    .farm-hero,
+    .buyer-hero,
+    .farmer-hero,
+    .admin-welcome,
+    .product-details__hero
+  ) {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(255, 255, 255, 0.55);
+  box-shadow:
+    var(--shadow-inset-light),
+    0 18px 34px rgba(16, 22, 16, 0.11),
+    0 26px 54px rgba(16, 22, 16, 0.08);
+}
+
+.app-main :is(
+    .home-hero,
+    .marketplace-hero,
+    .about-hero,
+    .contact-hero,
+    .contact-banner,
+    .cart-hero,
+    .checkout-hero,
+    .farm-hero,
+    .buyer-hero,
+    .farmer-hero,
+    .admin-welcome,
+    .product-details__hero
+  )::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 22%),
+    radial-gradient(circle at 92% 10%, rgba(255, 255, 255, 0.42), transparent 34%);
+  opacity: 0.75;
+}
+
+.app-main :is(
+    .home-hero > *,
+    .marketplace-hero > *,
+    .about-hero > *,
+    .contact-hero > *,
+    .contact-banner > *,
+    .cart-hero > *,
+    .checkout-hero > *,
+    .farm-hero > *,
+    .buyer-hero > *,
+    .farmer-hero > *,
+    .admin-welcome > *,
+    .product-details__hero > *
+  ) {
+  position: relative;
+  z-index: 1;
+}
+
+.app-main :is(
+    .auth-card,
+    .contact-form,
+    .contact-info,
+    .contact-note,
+    .shipping-form,
+    .order-summary,
+    .cart-card,
+    .buyer-panel,
+    .farmer-panel,
+    .admin-users,
+    .admin-panel,
+    .farm-products,
+    .farmer-popup,
+    .map-canvas,
+    .vision-card,
+    .mission-card,
+    .product-card,
+    .home-feature__card,
+    .home-how__card,
+    .goals-grid__card,
+    .cart-table
+  ) {
+  border-color: rgba(255, 255, 255, 0.58);
+  box-shadow:
+    var(--shadow-inset-light),
+    0 16px 28px rgba(15, 23, 15, 0.1),
+    0 22px 46px rgba(15, 23, 15, 0.06);
+  backdrop-filter: blur(10px);
+}
+
+.app-main :is(
+    .buyer-stats article,
+    .farmer-stats article,
+    .admin-stats article,
+    .marketplace-hero__stat,
+    .farm-hero__stats div
+  ) {
+  border-color: rgba(255, 255, 255, 0.62);
+  box-shadow:
+    var(--shadow-inset-light),
+    0 12px 24px rgba(16, 24, 16, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.app-main :is(
+    .buyer-table__row,
+    .farmer-table__row,
+    .admin-table__row,
+    .order-summary__item,
+    .farmer-popup__item,
+    .buyer-favorites__item,
+    .farmer-listings__item
+  ) {
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease;
+}
+
+@media (hover: hover) {
+  .app-main :is(
+      .buyer-panel,
+      .farmer-panel,
+      .admin-panel,
+      .vision-card,
+      .mission-card,
+      .farm-products__card,
+      .product-card,
+      .goals-grid__card,
+      .home-feature__card,
+      .home-how__card
+    ):hover {
+    transform: translateY(-4px);
+    box-shadow:
+      var(--shadow-inset-light),
+      0 20px 36px rgba(16, 24, 16, 0.12),
+      0 28px 56px rgba(16, 24, 16, 0.08);
+  }
+
+  .app-main :is(
+      .buyer-table__row,
+      .farmer-table__row,
+      .admin-table__row,
+      .farmer-popup__item,
+      .buyer-favorites__item,
+      .farmer-listings__item
+    ):hover {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(104, 138, 93, 0.22);
+    box-shadow: 0 10px 18px rgba(17, 24, 17, 0.06);
+    transform: translateY(-2px);
+  }
+}
+
+.app-main :is(
+    .buyer-chip,
+    .farmer-chip,
+    .admin-chip,
+    .buyer-badge,
+    .farmer-status,
+    .farm-products__badge,
+    .admin-pill,
+    .product-card__badge
+  ) {
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.48));
+  color: #284735;
+  box-shadow: var(--shadow-inset-light);
+}
+
+.app-main :is(
+    .home-button--primary,
+    .home-search__button,
+    .cart-continue,
+    .contact-form__button,
+    .marketplace-results__map,
+    .map-view__action,
+    .farm-hero__back,
+    .farmer-popup__cta,
+    .product-card__cta,
+    .farm-products__body button,
+    .buyer-button,
+    .farmer-button,
+    .admin-actions .primary,
+    .stripe-pay,
+    .cart-summary__button
+  ) {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 44%),
+    linear-gradient(180deg, #2d5638 0%, #1f3f2b 100%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 10px 18px rgba(18, 29, 18, 0.18);
+}
+
+.app-main :is(
+    .home-button--ghost,
+    .marketplace-filters__reset,
+    .marketplace-filters__apply,
+    .buyer-panel__header button,
+    .farmer-panel__header button,
+    .admin-actions .ghost,
+    .admin-view,
+    .admin-language,
+    .admin-validation button,
+    .admin-platform__footer button,
+    .order-summary__remove,
+    .farmer-popup__close
+  ) {
+  border-color: rgba(110, 128, 105, 0.2);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(249, 243, 233, 0.9));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    0 8px 16px rgba(18, 28, 18, 0.06);
+}
+
+.app-main :is(
+    .auth-field,
+    .home-search__field,
+    .contact-form__field input,
+    .contact-form__field textarea,
+    .shipping-form__field input,
+    .marketplace-results__select select,
+    .map-view__search,
+    .admin-search
+  ) {
+  border-color: rgba(116, 134, 109, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+}
+
+.app-main :is(
+    .contact-form__field input,
+    .contact-form__field textarea,
+    .shipping-form__field input,
+    .marketplace-results__select select
+  ) {
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease;
+}
+
+.app-main :is(
+    .contact-form__field input,
+    .contact-form__field textarea,
+    .shipping-form__field input,
+    .marketplace-results__select select
+  ):focus {
+  border-color: rgba(95, 134, 84, 0.36);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.86),
+    0 0 0 3px rgba(95, 134, 84, 0.12);
+}
+
+.app-main :is(
+    .home-section__kicker,
+    .marketplace-hero__kicker,
+    .about-hero__kicker,
+    .contact-hero__kicker,
+    .buyer-hero__kicker,
+    .farmer-hero__kicker,
+    .admin-welcome__kicker,
+    .farm-hero__kicker,
+    .map-view__kicker,
+    .marketplace-results__eyebrow
+  ) {
+  color: rgba(51, 78, 53, 0.8);
+  letter-spacing: 0.24em;
+}
+
+.app-main :is(
+    .home-section__title,
+    .home-hero__title,
+    .marketplace-hero__title,
+    .contact-hero__title,
+    .about-hero__title,
+    .cart-hero__title,
+    .checkout-hero__title,
+    .farm-hero__title,
+    .map-view__title
+  ) {
+  color: #1f3123;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.app-main :is(
+    .home-feature__media,
+    .contact-info__icon,
+    .home-how__icon,
+    .admin-stats__icon,
+    .buyer-rating,
+    .farmer-popup__avatar,
+    .farmer-popup__thumb
+  ) {
+  border-color: rgba(255, 255, 255, 0.6);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 10px 18px rgba(16, 24, 16, 0.08);
+}
+
+.app-main :is(
+    .map-canvas,
+    .map-view__search,
+    .farmer-popup
+  ) {
+  box-shadow:
+    var(--shadow-inset-light),
+    0 18px 34px rgba(14, 22, 14, 0.12),
+    0 26px 54px rgba(14, 22, 14, 0.08);
+}
+
+.app-main :is(
+    .admin-sidebar,
+    .souk-footer
+  ) {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.app-main :is(
+    .contact-form__field input::placeholder,
+    .contact-form__field textarea::placeholder,
+    .shipping-form__field input::placeholder,
+    .auth-field input::placeholder,
+    .map-view__search input::placeholder,
+    .admin-search input::placeholder
+  ) {
+  color: rgba(92, 108, 95, 0.72);
+}
+
+html[data-theme='dark'] .app-route-progress {
+  background: linear-gradient(
+    90deg,
+    rgba(127, 181, 113, 0),
+    rgba(127, 181, 113, 0.72),
+    rgba(127, 181, 113, 0)
+  );
+}
+
+html[data-theme='dark'] .app-route-glow {
+  background: radial-gradient(
+    ellipse at 35% 50%,
+    rgba(141, 194, 125, 0.3),
+    rgba(141, 194, 125, 0) 64%
+  );
+}
+
+html[data-theme='dark'] .app-main > :is(
+    .home-page,
+    .marketplace-page,
+    .map-view,
+    .farm-page,
+    .product-details,
+    .cart-page,
+    .checkout-page,
+    .contact-page,
+    .about-page,
+    .auth-page,
+    .buyer-dashboard,
+    .farmer-dashboard,
+    .admin-dashboard
+  )::before,
+html[data-theme='dark'] .app-main > :is(
+    .home-page,
+    .marketplace-page,
+    .map-view,
+    .farm-page,
+    .product-details,
+    .cart-page,
+    .checkout-page,
+    .contact-page,
+    .about-page,
+    .auth-page,
+    .buyer-dashboard,
+    .farmer-dashboard,
+    .admin-dashboard
+  )::after {
+  opacity: 0.42;
+  filter: saturate(0.75) brightness(0.42);
+}
+
+html[data-theme='dark'] .app-main {
+  color: var(--color-text);
+}
+
+html[data-theme='dark'] .app-main :is(
+    .home-hero,
+    .marketplace-hero,
+    .about-hero,
+    .contact-hero,
+    .contact-banner,
+    .cart-hero,
+    .checkout-hero,
+    .farm-hero,
+    .buyer-hero,
+    .farmer-hero,
+    .admin-welcome,
+    .product-details__hero
+  ) {
+  border-color: rgba(255, 255, 255, 0.11);
+  box-shadow:
+    var(--shadow-inset-light),
+    0 18px 34px rgba(0, 0, 0, 0.24),
+    0 26px 54px rgba(0, 0, 0, 0.18);
+}
+
+html[data-theme='dark'] .app-main :is(
+    .home-hero,
+    .marketplace-hero,
+    .about-hero,
+    .contact-hero,
+    .contact-banner,
+    .cart-hero,
+    .checkout-hero,
+    .farm-hero,
+    .buyer-hero,
+    .farmer-hero,
+    .admin-welcome,
+    .product-details__hero
+  )::after {
+  background:
+    linear-gradient(180deg, rgba(4, 8, 6, 0.22), rgba(4, 8, 6, 0.52) 70%),
+    radial-gradient(circle at 92% 10%, rgba(6, 10, 8, 0.66), transparent 38%);
+  opacity: 1;
+}
+
+html[data-theme='dark'] .app-main :is(
+    .auth-card,
+    .contact-form,
+    .contact-info,
+    .contact-note,
+    .shipping-form,
+    .order-summary,
+    .cart-card,
+    .buyer-panel,
+    .farmer-panel,
+    .admin-users,
+    .admin-panel,
+    .farm-products,
+    .farmer-popup,
+    .map-canvas,
+    .vision-card,
+    .mission-card,
+    .product-card,
+    .home-feature__card,
+    .home-how__card,
+    .goals-grid__card,
+    .cart-table
+  ) {
+  background: rgba(16, 24, 19, 0.78);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    var(--shadow-inset-light),
+    0 16px 28px rgba(0, 0, 0, 0.24),
+    0 22px 46px rgba(0, 0, 0, 0.16);
+}
+
+html[data-theme='dark'] .app-main :is(
+    .buyer-stats article,
+    .farmer-stats article,
+    .admin-stats article,
+    .marketplace-hero__stat,
+    .farm-hero__stats div
+  ) {
+  background: rgba(17, 27, 21, 0.72);
+  border-color: rgba(255, 255, 255, 0.11);
+  color: var(--color-text);
+}
+
+html[data-theme='dark'] .app-main :is(
+    .buyer-table__row,
+    .farmer-table__row,
+    .admin-table__row,
+    .farmer-popup__item,
+    .buyer-favorites__item,
+    .farmer-listings__item,
+    .admin-validation article,
+    .order-summary__item
+  ) {
+  background: rgba(13, 20, 16, 0.78);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+html[data-theme='dark'] .app-main :is(
+    .buyer-table__head,
+    .farmer-table__head,
+    .admin-table__head
+  ) {
+  color: rgba(194, 210, 198, 0.78);
+}
+
+html[data-theme='dark'] .app-main :is(
+    .auth-field,
+    .home-search__field,
+    .contact-form__field input,
+    .contact-form__field textarea,
+    .shipping-form__field input,
+    .marketplace-results__select select,
+    .map-view__search,
+    .admin-search,
+    .order-summary__remove,
+    .farmer-popup__close
+  ) {
+  background: rgba(9, 14, 11, 0.7);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--color-text);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+html[data-theme='dark'] .app-main :is(
+    .contact-form__field input,
+    .contact-form__field textarea,
+    .shipping-form__field input,
+    .marketplace-results__select select,
+    .map-view__search input,
+    .admin-search input,
+    .auth-field input
+  ) {
+  color: var(--color-text);
+}
+
+html[data-theme='dark'] .app-main :is(
+    .contact-form__field input::placeholder,
+    .contact-form__field textarea::placeholder,
+    .shipping-form__field input::placeholder,
+    .auth-field input::placeholder,
+    .map-view__search input::placeholder,
+    .admin-search input::placeholder
+  ) {
+  color: rgba(179, 197, 183, 0.56);
+}
+
+html[data-theme='dark'] .app-main :is(
+    .contact-form__field input:focus,
+    .contact-form__field textarea:focus,
+    .shipping-form__field input:focus,
+    .marketplace-results__select select:focus
+  ) {
+  border-color: rgba(127, 181, 113, 0.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 3px rgba(127, 181, 113, 0.12);
+}
+
+html[data-theme='dark'] .app-main :is(
+    .home-button--ghost,
+    .marketplace-filters__reset,
+    .marketplace-filters__apply,
+    .buyer-panel__header button,
+    .farmer-panel__header button,
+    .admin-actions .ghost,
+    .admin-view,
+    .admin-language,
+    .admin-validation button,
+    .admin-platform__footer button
+  ) {
+  background:
+    linear-gradient(180deg, rgba(30, 43, 34, 0.94), rgba(18, 27, 21, 0.94));
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #e7f1e8;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 10px 18px rgba(0, 0, 0, 0.14);
+}
+
+html[data-theme='dark'] .app-main :is(
+    .home-button--primary,
+    .home-search__button,
+    .cart-continue,
+    .contact-form__button,
+    .marketplace-results__map,
+    .map-view__action,
+    .farm-hero__back,
+    .farmer-popup__cta,
+    .product-card__cta,
+    .farm-products__body button,
+    .buyer-button,
+    .farmer-button,
+    .admin-actions .primary,
+    .stripe-pay,
+    .cart-summary__button
+  ) {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 44%),
+    linear-gradient(180deg, #3a7248 0%, #224a2e 100%);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html[data-theme='dark'] .app-main :is(
+    .buyer-chip,
+    .farmer-chip,
+    .admin-chip,
+    .buyer-badge,
+    .farmer-status,
+    .farm-products__badge,
+    .admin-pill,
+    .product-card__badge
+  ) {
+  background:
+    linear-gradient(180deg, rgba(40, 58, 45, 0.9), rgba(24, 37, 29, 0.9));
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #dceddd;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+html[data-theme='dark'] .app-main :is(
+    .home-feature__media,
+    .contact-info__icon,
+    .home-how__icon,
+    .admin-stats__icon,
+    .buyer-rating,
+    .farmer-popup__avatar,
+    .farmer-popup__thumb
+  ) {
+  background: rgba(22, 34, 27, 0.88);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #dbeadc;
+}
+
+html[data-theme='dark'] .app-main :is(
+    .map-canvas
+  ) {
+  background:
+    radial-gradient(circle at 30% 20%, rgba(74, 101, 109, 0.4), transparent 60%),
+    linear-gradient(120deg, #273740, #223038 40%, #1f2b31);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+html[data-theme='dark'] .app-main :is(
+    .map-canvas__label
+  ) {
+  fill: rgba(225, 239, 231, 0.18);
+}
+
+html[data-theme='dark'] .app-main :is(
+    .map-canvas__ocean
+  ) {
+  color: rgba(214, 232, 224, 0.42);
+}
+
+html[data-theme='dark'] .app-main :is(
+    .home-section__title,
+    .home-hero__title,
+    .marketplace-hero__title,
+    .contact-hero__title,
+    .about-hero__title,
+    .cart-hero__title,
+    .checkout-hero__title,
+    .farm-hero__title,
+    .map-view__title,
+    .marketplace-results__title,
+    .buyer-panel__header h2,
+    .farmer-panel__header h2,
+    .admin-section__header h2,
+    .admin-panel__header h2,
+    .order-summary__header h2,
+    .shipping-form__header h2,
+    .contact-form__header h3,
+    .contact-info h3,
+    .auth-card__title
+  ) {
+  color: #edf6ee;
+  text-shadow: none;
+}
+
+html[data-theme='dark'] .app-main :is(
+    .home-section__subtitle,
+    .home-hero__text,
+    .marketplace-hero__subtitle,
+    .contact-hero__subtitle,
+    .farm-hero__subtitle,
+    .map-view__subtitle,
+    .cart-hero__subtitle,
+    .marketplace-results__count,
+    .auth-card__subtitle,
+    .auth-footer,
+    .order-summary__detail,
+    .order-summary__secure,
+    .order-summary__payments,
+    .order-summary__terms
+  ) {
+  color: rgba(210, 224, 212, 0.8);
+}
+
+html[data-theme='dark'] .app-main :is(
+    .home-section__kicker,
+    .marketplace-hero__kicker,
+    .about-hero__kicker,
+    .contact-hero__kicker,
+    .buyer-hero__kicker,
+    .farmer-hero__kicker,
+    .admin-welcome__kicker,
+    .farm-hero__kicker,
+    .map-view__kicker,
+    .marketplace-results__eyebrow
+  ) {
+  color: rgba(175, 201, 178, 0.78);
+}
+
+html[data-theme='dark'] .app-main :is(
+    .home-feature__title,
+    .home-how__title,
+    .product-card__title,
+    .product-card__value,
+    .order-summary__name,
+    .buyer-table__id,
+    .farmer-table__id,
+    .buyer-favorites__name,
+    .farmer-listings__name,
+    .admin-user__name,
+    .farmer-popup__product,
+    .farmer-popup__name,
+    .contact-note h3,
+    .contact-banner__content h2,
+    .farm-products__body h3
+  ) {
+  color: #e8f3e9;
+}
+
+html[data-theme='dark'] .app-main :is(
+    .product-card__unit,
+    .product-card__meta,
+    .contact-info__text,
+    .contact-note p,
+    .contact-banner__content p,
+    .farmer-popup__meta,
+    .farmer-popup__location,
+    .farm-products__body p,
+    .admin-user__email
+  ) {
+  color: rgba(201, 217, 204, 0.76);
+}
+
+html[data-theme='dark'] .app-main :is(
+    .home-search__field select,
+    .marketplace-results__select select,
+    .map-view__search input
+  ) {
+  color: #e8f4ea;
+}
+
+html[data-theme='dark'] .app-main :is(
+    .home-search__icon,
+    .home-search__chevron,
+    .map-view__search-icon,
+    .contact-info__icon,
+    .auth-field__icon
+  ) {
+  color: rgba(201, 220, 205, 0.8);
+}
+
+html[data-theme='dark'] .app-main :is(
+    .admin-search__icon
+  ) {
+  border-color: rgba(175, 201, 178, 0.7);
+}
+
+html[data-theme='dark'] .app-main :is(
+    .admin-search__icon::after
+  ) {
+  background: rgba(175, 201, 178, 0.7);
+}
+
+@media (max-width: 900px) {
+  .app-main :is(
+      .buyer-hero,
+      .farmer-hero,
+      .admin-welcome,
+      .farm-hero
+    ) {
+    border-radius: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-route-view,
+  .app-route-layer.is-routing .app-route-progress,
+  .app-route-layer.is-routing .app-route-glow {
+    animation: none;
+  }
+
+  .app-main :is(
+      .buyer-table__row,
+      .farmer-table__row,
+      .admin-table__row,
+      .order-summary__item,
+      .farmer-popup__item,
+      .buyer-favorites__item,
+      .farmer-listings__item,
+      .buyer-panel,
+      .farmer-panel,
+      .admin-panel,
+      .vision-card,
+      .mission-card,
+      .farm-products__card,
+      .product-card,
+      .goals-grid__card,
+      .home-feature__card,
+      .home-how__card
+    ) {
+    transition: none;
+  }
+}

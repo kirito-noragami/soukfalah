@@ -1,0 +1,39 @@
+.price-range {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.price-range__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.price-range__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #344134;
+}
+
+.price-range__value {
+  font-size: 12px;
+  color: #586558;
+  background: #f3eadb;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.price-range input[type='range'] {
+  width: 100%;
+  accent-color: #4f7a46;
+}
+
+.price-range__range {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #7a867a;
+}

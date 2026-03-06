@@ -1,0 +1,93 @@
+:root {
+  --color-forest: #1f3a2b;
+  --color-forest-2: #284735;
+  --color-forest-deep: #12251b;
+  --color-cream: #fbf7ef;
+  --color-sand: #efe3cf;
+  --color-wheat: #e4cfac;
+  --color-gold: #b98b41;
+  --color-leaf: #5f8654;
+  --color-moss: #88a576;
+  --color-clay: #b66a4d;
+  --color-text: #1e3023;
+  --color-text-soft: #445548;
+  --color-muted: #657368;
+  --color-line: rgba(115, 101, 79, 0.18);
+  --color-line-strong: rgba(87, 70, 47, 0.24);
+
+  --surface-cream: rgba(255, 253, 248, 0.86);
+  --surface-soft: rgba(255, 255, 255, 0.72);
+  --surface-soft-2: rgba(255, 255, 255, 0.58);
+  --surface-olive: rgba(31, 58, 43, 0.8);
+  --glass-stroke: rgba(255, 255, 255, 0.42);
+  --glass-stroke-strong: rgba(255, 255, 255, 0.58);
+
+  --shadow-soft: 0 14px 30px rgba(17, 24, 17, 0.11);
+  --shadow-medium: 0 22px 42px rgba(17, 24, 17, 0.15);
+  --shadow-elevated: 0 32px 70px rgba(16, 24, 16, 0.2);
+  --shadow-inset-light: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+
+  --gradient-shell:
+    radial-gradient(circle at 14% 6%, rgba(245, 234, 212, 0.34), transparent 44%),
+    radial-gradient(circle at 92% 12%, rgba(141, 176, 121, 0.22), transparent 38%),
+    radial-gradient(circle at 80% 92%, rgba(213, 166, 106, 0.16), transparent 46%),
+    linear-gradient(180deg, #163021 0%, #1f3a2b 45%, #13261c 100%);
+  --gradient-surface:
+    radial-gradient(circle at 12% 2%, rgba(255, 255, 255, 0.95), transparent 36%),
+    radial-gradient(circle at 92% 8%, rgba(224, 243, 214, 0.52), transparent 34%),
+    linear-gradient(140deg, rgba(255, 250, 242, 0.94) 0%, rgba(245, 237, 223, 0.92) 56%, rgba(240, 231, 215, 0.9) 100%);
+
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 30px;
+  --radius-2xl: 36px;
+  --radius-pill: 999px;
+
+  --font-sans: "Plus Jakarta Sans", "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+  --font-display: "Fraunces", "IBM Plex Sans Arabic", Georgia, serif;
+
+  --focus-ring: 0 0 0 3px rgba(95, 134, 84, 0.18), 0 0 0 1px rgba(95, 134, 84, 0.45);
+}
+
+:root[data-theme='dark'] {
+  --color-forest: #0e1c15;
+  --color-forest-2: #162820;
+  --color-forest-deep: #08120d;
+  --color-cream: #111a15;
+  --color-sand: #18231c;
+  --color-wheat: #3f4d3e;
+  --color-gold: #d0a65c;
+  --color-leaf: #7fb571;
+  --color-moss: #9bc38f;
+  --color-clay: #d78368;
+  --color-text: #ecf5ec;
+  --color-text-soft: #cad9cb;
+  --color-muted: #9ab09d;
+  --color-line: rgba(210, 229, 214, 0.12);
+  --color-line-strong: rgba(210, 229, 214, 0.2);
+
+  --surface-cream: rgba(18, 28, 22, 0.84);
+  --surface-soft: rgba(24, 37, 29, 0.72);
+  --surface-soft-2: rgba(24, 37, 29, 0.58);
+  --surface-olive: rgba(15, 25, 19, 0.82);
+  --glass-stroke: rgba(255, 255, 255, 0.12);
+  --glass-stroke-strong: rgba(255, 255, 255, 0.2);
+
+  --shadow-soft: 0 14px 34px rgba(0, 0, 0, 0.28);
+  --shadow-medium: 0 22px 46px rgba(0, 0, 0, 0.34);
+  --shadow-elevated: 0 36px 80px rgba(0, 0, 0, 0.44);
+  --shadow-inset-light: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+
+  --gradient-shell:
+    radial-gradient(circle at 14% 6%, rgba(66, 94, 72, 0.16), transparent 44%),
+    radial-gradient(circle at 92% 12%, rgba(92, 129, 83, 0.14), transparent 38%),
+    radial-gradient(circle at 80% 92%, rgba(161, 118, 57, 0.12), transparent 46%),
+    linear-gradient(180deg, #060d09 0%, #0c1711 42%, #070d0a 100%);
+  --gradient-surface:
+    radial-gradient(circle at 12% 0%, rgba(40, 58, 45, 0.66), transparent 34%),
+    radial-gradient(circle at 94% 8%, rgba(63, 98, 64, 0.26), transparent 34%),
+    linear-gradient(145deg, rgba(13, 21, 16, 0.96) 0%, rgba(16, 25, 19, 0.94) 58%, rgba(11, 18, 14, 0.95) 100%);
+
+  --focus-ring: 0 0 0 3px rgba(127, 181, 113, 0.18), 0 0 0 1px rgba(127, 181, 113, 0.5);
+}

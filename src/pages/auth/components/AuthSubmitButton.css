@@ -1,0 +1,25 @@
+.auth-submit {
+  border-radius: 12px;
+  padding: 12px 18px;
+  background: #2f4b31;
+  color: #f7f3ea;
+  font-weight: 600;
+  font-size: 14px;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  min-height: 46px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.auth-submit:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 16px rgba(32, 40, 32, 0.14);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-submit {
+    transition: none;
+  }
+}

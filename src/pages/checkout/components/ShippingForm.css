@@ -1,0 +1,50 @@
+.shipping-form {
+  background: #fffdf9;
+  border-radius: 18px;
+  border: 1px solid #eadfce;
+  overflow: hidden;
+  box-shadow: 0 16px 26px rgba(32, 40, 32, 0.12);
+}
+
+.shipping-form__header {
+  padding: 16px 18px 12px;
+  background: rgba(255, 255, 255, 0.85);
+  border-bottom: 1px solid rgba(216, 205, 186, 0.7);
+}
+
+.shipping-form__header h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #223223;
+}
+
+.shipping-form__body {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px 20px;
+}
+
+.shipping-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  color: #344134;
+  font-weight: 500;
+}
+
+.shipping-form__field input {
+  border-radius: 10px;
+  border: 1px solid #e1d4c2;
+  background: #fdfbf7;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #223223;
+}
+
+.shipping-form__field input:focus {
+  outline: none;
+  border-color: #bda98f;
+  box-shadow: 0 0 0 2px rgba(79, 122, 70, 0.12);
+}

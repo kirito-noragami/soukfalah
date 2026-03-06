@@ -1,0 +1,129 @@
+.marketplace-filters {
+  background: #fffdf9;
+  border-radius: 18px;
+  border: 1px solid #eadfce;
+  padding: 18px 16px;
+  box-shadow: 0 16px 26px rgba(32, 40, 32, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.marketplace-filters__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.marketplace-filters__title {
+  margin: 0;
+  font-size: 18px;
+  color: #223223;
+}
+
+.marketplace-filters__reset {
+  border: none;
+  background: #f3eadb;
+  color: #526052;
+  font-size: 12px;
+  border-radius: 10px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.marketplace-filters__group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.marketplace-filters__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #344134;
+}
+
+.marketplace-filters__select {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.marketplace-filters__select select {
+  width: 100%;
+  appearance: none;
+  border-radius: 12px;
+  border: 1px solid #e7dcc9;
+  background: #fdfbf7;
+  padding: 10px 36px 10px 12px;
+  font-size: 13px;
+  color: #2f3b2f;
+  font-weight: 500;
+}
+
+.marketplace-filters__select select:focus {
+  outline: none;
+  border-color: #bda98f;
+  box-shadow: 0 0 0 2px rgba(79, 122, 70, 0.12);
+}
+
+.marketplace-filters__chevron {
+  position: absolute;
+  right: 12px;
+  width: 16px;
+  height: 16px;
+  color: #7b8a74;
+  pointer-events: none;
+}
+
+.marketplace-filters__chevron svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.marketplace-filters__options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.marketplace-filters__option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #3a463a;
+}
+
+.marketplace-filters__option input {
+  width: 16px;
+  height: 16px;
+  accent-color: #4f7a46;
+}
+
+.marketplace-filters__apply {
+  margin-top: 4px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: none;
+  background: #2f4b31;
+  color: #f7f3ea;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.marketplace-filters__apply:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 16px rgba(32, 40, 32, 0.14);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marketplace-filters__apply {
+    transition: none;
+  }
+}
