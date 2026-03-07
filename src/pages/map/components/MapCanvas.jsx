@@ -1,34 +1,78 @@
-import FarmerPin from './FarmerPin';
+import { useEffect, useMemo } from 'react';
+import L from 'leaflet';
+import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 import './MapCanvas.css';
+
+const MOROCCO_CENTER = [32.35, -6.2];
+const MOROCCO_ZOOM = 6;
+const FOCUS_ZOOM = 9;
+
+const createFarmIcon = (accent, isActive) => L.divIcon({
+  className: 'map-canvas__marker-wrapper',
+  html: `<span class="map-canvas__marker${isActive ? ' is-active' : ''}" style="--marker-accent:${accent};"></span>`,
+  iconSize: [24, 24],
+  iconAnchor: [12, 24],
+  popupAnchor: [0, -20]
+});
+
+const MapController = ({
+  selectedFarm,
+  onDeselect
+}) => {
+  const map = useMap();
+  useMapEvents({
+    click: () => {
+      onDeselect?.();
+    }
+  });
+  useEffect(() => {
+    if (!selectedFarm?.coordinates) {
+      return;
+    }
+    map.flyTo([selectedFarm.coordinates.lat, selectedFarm.coordinates.lng], FOCUS_ZOOM, {
+      duration: 0.8
+    });
+  }, [map, selectedFarm]);
+  return null;
+};
+
 const MapCanvas = ({
   farms,
   selectedFarmId,
   onSelectFarm,
   onDeselect
 }) => {
-  return <div className="map-canvas" onClick={onDeselect}>
-      <div className="map-canvas__texture" aria-hidden="true" />
-      <svg className="map-canvas__shape" viewBox="0 0 600 420" aria-hidden="true">
-        <defs>
-          <linearGradient id="map-land" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#dfe9d1" />
-            <stop offset="50%" stopColor="#c9dcb5" />
-            <stop offset="100%" stopColor="#b6c99f" />
-          </linearGradient>
-        </defs>
-        <path d="M140 70L210 40L300 42L380 62L460 100L520 150L535 210L505 260L455 300L380 338L300 356L230 340L185 312L155 275L130 230L118 175L125 120Z" fill="url(#map-land)" stroke="#9fb08d" strokeWidth="3" />
-        <path d="M180 120L240 110L300 120L340 145L360 175L330 200L280 208L220 190L190 165Z" fill="none" stroke="#b1c2a0" strokeWidth="2" strokeDasharray="6 6" opacity="0.6" />
-        <path d="M220 260L280 250L340 260L390 285L420 315" fill="none" stroke="#a6b895" strokeWidth="2" opacity="0.4" />
-        <text x="300" y="210" textAnchor="middle" className="map-canvas__label">
-          Morocco
-        </text>
-      </svg>
+  const selectedFarm = useMemo(() => farms.find(farm => farm.id === selectedFarmId), [farms, selectedFarmId]);
+  const markerIcons = useMemo(() => Object.fromEntries(farms.map(farm => [farm.id, createFarmIcon(farm.accent, farm.id === selectedFarmId)])), [farms, selectedFarmId]);
+  if (!farms.length) {
+    return <div className="map-canvas map-canvas--empty">
+        <p>No farms match your search.</p>
+      </div>;
+  }
+  return <div className="map-canvas">
+      <MapContainer className="map-canvas__leaflet" center={MOROCCO_CENTER} zoom={MOROCCO_ZOOM} minZoom={5} maxZoom={17} scrollWheelZoom>
+        <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
-      {farms.map(farm => <FarmerPin key={farm.id} farm={farm} isActive={farm.id === selectedFarmId} onClick={onSelectFarm} />)}
+        <MapController selectedFarm={selectedFarm} onDeselect={onDeselect} />
 
-      <div className="map-canvas__ocean" aria-hidden="true">
-        Atlantic Ocean
-      </div>
+        {farms.map(farm => <Marker key={farm.id} position={[farm.coordinates.lat, farm.coordinates.lng]} icon={markerIcons[farm.id]} eventHandlers={{
+        click: () => onSelectFarm?.(farm.id)
+      }}>
+            <Popup>
+              <div className="map-canvas__popup">
+                <strong>{farm.name}</strong>
+                <p>{farm.location}</p>
+                <ul>
+                  {farm.products.slice(0, 3).map(product => <li key={`${farm.id}-${product.name}`}>
+                      {product.name}: {product.price}/{product.unit}
+                    </li>)}
+                </ul>
+                <a href={`/farm/${farm.id}`}>View products</a>
+              </div>
+            </Popup>
+          </Marker>)}
+      </MapContainer>
     </div>;
 };
 export default MapCanvas;

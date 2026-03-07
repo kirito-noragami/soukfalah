@@ -1,4 +1,5 @@
 import { useDeferredValue, useState } from 'react';
+import { useAuth } from '../../../app/providers/AuthProvider';
 import fieldsImage from '../../../assets/images/home-fields.png';
 import heroImage from '../../../assets/images/home-hero.png';
 import { navigateTo } from '../../../app/navigation';
@@ -34,6 +35,9 @@ const statusBadge = status => {
 };
 
 const AdminDashboardPage = () => {
+  const { fullName, username } = useAuth();
+  const displayName = fullName || username || 'Admin';
+  const initials = displayName.split(/\s+/).slice(0,2).map(w=>w[0]?.toUpperCase()||'').join('') || 'AD';
   const pageStyle = {
     '--admin-hero-image': `url(${heroImage})`,
     '--admin-fields-image': `url(${fieldsImage})`
@@ -216,9 +220,9 @@ const AdminDashboardPage = () => {
       <div className="admin-dashboard__layout">
         <aside className="admin-sidebar">
           <div className="admin-sidebar__profile">
-            <div className="admin-sidebar__avatar" aria-hidden="true"><span>ZG</span></div>
+            <div className="admin-sidebar__avatar" aria-hidden="true"><span>{initials}</span></div>
             <div>
-              <p className="admin-sidebar__name">Zineb G.</p>
+              <p className="admin-sidebar__name">{displayName}</p>
               <p className="admin-sidebar__role">Administrator</p>
             </div>
           </div>
@@ -251,7 +255,7 @@ const AdminDashboardPage = () => {
           <header className="admin-welcome">
             <div>
               <p className="admin-welcome__kicker">Administrator Dashboard</p>
-              <h1>Welcome back, Zineb!</h1>
+              <h1>Welcome back, {displayName}!</h1>
               <p>Moderate listings, manage users, and monitor platform health with live controls.</p>
             </div>
             <div className="admin-welcome__actions">
@@ -569,4 +573,3 @@ const AdminDashboardPage = () => {
 };
 
 export default AdminDashboardPage;
-

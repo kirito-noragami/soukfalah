@@ -2,342 +2,209 @@ import { useState } from 'react';
 import fieldsImage from '../../../assets/images/home-fields.png';
 import heroImage from '../../../assets/images/home-hero.png';
 import { products } from '../../../data/products';
+import { useAuth } from '../../../app/providers/AuthProvider';
+import { DEMO_LISTINGS, DEMO_REQUESTS } from '../../../data/seedData';
 import '../dashboard-ui.css';
 import './FarmerDashboardPage.css';
 
-let farmerRequestCounter = 93;
-let farmerListingCounter = 10;
-let farmerActivityCounter = 1;
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const formatDh  = v => `${new Intl.NumberFormat('fr-MA').format(Math.round(v))} DH`;
+const formatKg  = v => `${new Intl.NumberFormat('fr-MA').format(Math.round(v))} kg`;
+const formatStamp = iso => { try { return new Intl.DateTimeFormat('en-GB',{month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(iso)); } catch{return iso;} };
 
-const formatDh = value => `${new Intl.NumberFormat('fr-MA').format(Math.round(value))} DH`;
-const formatKg = value => `${new Intl.NumberFormat('fr-MA').format(Math.round(value))} kg`;
-const formatStamp = iso => new Intl.DateTimeFormat('en-GB', {
-  month: 'short',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit'
-}).format(new Date(iso));
-
-const nextRequestId = () => {
-  farmerRequestCounter += 1;
-  return `REQ-${String(farmerRequestCounter).padStart(3, '0')}`;
-};
-
-const nextListingId = () => {
-  farmerListingCounter += 1;
-  return `LIST-${String(farmerListingCounter).padStart(2, '0')}`;
-};
-
-const createFarmerActivity = (text, kind = 'info') => ({
-  id: `farmer-activity-${farmerActivityCounter += 1}`,
-  text,
-  kind,
-  createdAt: new Date().toISOString()
-});
-
-const getFarmerStatusClass = status => {
-  if (status === 'Accepted' || status === 'Active') return 'dash-status dash-status--success';
-  if (status === 'Declined') return 'dash-status dash-status--danger';
-  if (status === 'Negotiating' || status === 'Low Stock') return 'dash-status dash-status--warning';
-  if (status === 'Paused') return 'dash-status dash-status--info';
+const getStatusClass = s => {
+  if(s==='Accepted'||s==='Active')      return 'dash-status dash-status--success';
+  if(s==='Declined')                     return 'dash-status dash-status--danger';
+  if(s==='Negotiating'||s==='Low Stock') return 'dash-status dash-status--warning';
+  if(s==='Paused')                       return 'dash-status dash-status--info';
   return 'dash-status dash-status--info';
 };
 
-const initialRequests = [{
-  id: 'REQ-093',
-  product: 'Organic Tomatoes',
-  buyer: 'Rania K.',
-  qtyKg: 120,
-  pricePerKg: 15,
-  status: 'Pending',
-  deliveryWindow: 'Tomorrow morning',
-  note: 'Need clean packaging',
-  createdAt: '2026-02-21T09:10:00Z'
-}, {
-  id: 'REQ-092',
-  product: 'Seasonal Oranges',
-  buyer: 'Omar B.',
-  qtyKg: 80,
-  pricePerKg: 7,
-  status: 'Negotiating',
-  deliveryWindow: 'Tue afternoon',
-  note: 'Discuss pallet delivery',
-  createdAt: '2026-02-20T16:20:00Z'
-}, {
-  id: 'REQ-091',
-  product: 'Fresh Herbs Pack',
-  buyer: 'Lamia D.',
-  qtyKg: 45,
-  pricePerKg: 22,
-  status: 'Accepted',
-  deliveryWindow: 'Today 18:00',
-  note: 'Restaurant supply',
-  createdAt: '2026-02-20T11:05:00Z'
-}];
+// ─── localStorage ─────────────────────────────────────────────────────────────
+const LISTINGS_KEY  = 'soukfalah-listings';
+const REQUESTS_KEY  = 'soukfalah-requests';
 
-const initialListings = [{
-  id: 'LIST-01',
-  name: 'Golden Potatoes',
-  stockKg: 240,
-  status: 'Active',
-  category: 'Vegetables',
-  pricePerKg: 10,
-  updatedAt: '2026-02-20T08:00:00Z'
-}, {
-  id: 'LIST-02',
-  name: 'Summer Strawberries',
-  stockKg: 75,
-  status: 'Low Stock',
-  category: 'Fruits',
-  pricePerKg: 20,
-  updatedAt: '2026-02-21T07:10:00Z'
-}, {
-  id: 'LIST-03',
-  name: 'Early Cucumbers',
-  stockKg: 160,
-  status: 'Active',
-  category: 'Vegetables',
-  pricePerKg: 13,
-  updatedAt: '2026-02-19T13:25:00Z'
-}];
+const readLS   = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)||'null') ?? fallback; } catch { return fallback; } };
+const writeLS  = (key, val)      => { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} };
 
-const initialFarmerActivity = [{
-  id: 'farmer-activity-1',
-  text: 'Accepted request REQ-091 from Lamia D.',
-  kind: 'success',
-  createdAt: '2026-02-20T11:15:00Z'
-}, {
-  id: 'farmer-activity-2',
-  text: 'Stock warning for Summer Strawberries (75 kg)',
-  kind: 'warning',
-  createdAt: '2026-02-21T07:15:00Z'
-}, {
-  id: 'farmer-activity-3',
-  text: 'Updated price for Golden Potatoes',
-  kind: 'info',
-  createdAt: '2026-02-19T18:05:00Z'
-}];
+let _actId = 1;
+const mkAct = (text, kind='info') => ({ id:`fact-${_actId+=1}`, text, kind, createdAt: new Date().toISOString() });
 
+// ─── Component ────────────────────────────────────────────────────────────────
 const FarmerDashboardPage = () => {
-  const pageStyle = {
-    '--farmer-hero-image': `url(${heroImage})`,
-    '--farmer-fields-image': `url(${fieldsImage})`
-  };
+  const { fullName, username } = useAuth();
+  const displayName = fullName || username || 'Farmer';
 
-  const [requests, setRequests] = useState(initialRequests);
-  const [listings, setListings] = useState(initialListings);
-  const [activity, setActivity] = useState(initialFarmerActivity);
-  const [notice, setNotice] = useState(null);
-  const [requestFilter, setRequestFilter] = useState('all');
-  const [requestSearch, setRequestSearch] = useState('');
-  const [showAllRequests, setShowAllRequests] = useState(false);
-  const [selectedRequestId, setSelectedRequestId] = useState(initialRequests[0]?.id || null);
-  const [selectedListingId, setSelectedListingId] = useState(initialListings[0]?.id || null);
-  const [showAddListing, setShowAddListing] = useState(false);
-  const [manageListings, setManageListings] = useState(false);
-  const [counterOffer, setCounterOffer] = useState('0');
-  const [listingDraft, setListingDraft] = useState({
-    productId: products[0]?.id || '',
-    stockKg: '120',
-    pricePerKg: '15',
-    status: 'Active'
+  const pageStyle = { '--farmer-hero-image':`url(${heroImage})`, '--farmer-fields-image':`url(${fieldsImage})` };
+
+  const [listings,   setListings]  = useState(() => readLS(LISTINGS_KEY,  []));
+  const [requests,   setRequests]  = useState(() => readLS(REQUESTS_KEY,  []));
+  const [activity,   setActivity]  = useState([mkAct('Dashboard opened')]);
+  const [notice,     setNotice]    = useState(null);
+
+  const [requestFilter,      setRequestFilter]      = useState('all');
+  const [requestSearch,      setRequestSearch]      = useState('');
+  const [showAllRequests,    setShowAllRequests]    = useState(false);
+  const [selectedRequestId,  setSelectedRequestId]  = useState(() => readLS(REQUESTS_KEY,[])[0]?.id || null);
+  const [selectedListingId,  setSelectedListingId]  = useState(() => readLS(LISTINGS_KEY,[])[0]?.id || null);
+  const [showAddListing,     setShowAddListing]     = useState(false);
+  const [manageListings,     setManageListings]     = useState(false);
+  const [counterOffer,       setCounterOffer]       = useState('0');
+  const [listingDraft,       setListingDraft]       = useState({
+    productId: products[0]?.id || '', stockKg: '120', pricePerKg: '15', status: 'Active',
   });
 
-  const pushNotice = (message, type = 'success') => {
-    setNotice({
-      id: Date.now(),
-      message,
-      type
-    });
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  const pushNotice  = (msg, type='success') => setNotice({ id:Date.now(), msg, type });
+  const pushActivity = (text, kind='info')  => setActivity(p => [mkAct(text, kind), ...p].slice(0, 8));
+  const saveListings = v => { setListings(v); writeLS(LISTINGS_KEY, v); };
+  const saveRequests = v => { setRequests(v); writeLS(REQUESTS_KEY, v); };
+
+  // ── Seed button (only if empty) ─────────────────────────────────────────────
+  const hasSeedData = listings.length > 0 || requests.length > 0;
+  const loadSeedData = () => {
+    saveListings(DEMO_LISTINGS);
+    saveRequests(DEMO_REQUESTS);
+    setSelectedListingId(DEMO_LISTINGS[0]?.id || null);
+    setSelectedRequestId(DEMO_REQUESTS[0]?.id || null);
+    pushNotice('Demo data loaded! You can now test the dashboard.', 'success');
   };
 
-  const pushActivity = (text, kind = 'info') => {
-    setActivity(current => [createFarmerActivity(text, kind), ...current].slice(0, 8));
-  };
-
-  const filteredRequests = requests.filter(item => {
-    if (requestFilter !== 'all' && item.status !== requestFilter) {
-      return false;
-    }
-    if (requestSearch.trim()) {
-      const q = requestSearch.trim().toLowerCase();
-      const haystack = `${item.id} ${item.product} ${item.buyer}`.toLowerCase();
-      return haystack.includes(q);
-    }
+  // ── Derived ────────────────────────────────────────────────────────────────
+  const filteredRequests = requests.filter(r => {
+    if(requestFilter !== 'all' && r.status !== requestFilter) return false;
+    if(requestSearch.trim()) { const q=requestSearch.trim().toLowerCase(); return `${r.id} ${r.product} ${r.buyer}`.toLowerCase().includes(q); }
     return true;
   });
+  const visibleRequests  = showAllRequests ? filteredRequests : filteredRequests.slice(0, 6);
+  const selectedRequest  = requests.find(r => r.id === selectedRequestId) || visibleRequests[0] || null;
+  const selectedListing  = listings.find(l => l.id === selectedListingId) || listings[0] || null;
 
-  const visibleRequests = showAllRequests ? filteredRequests : filteredRequests.slice(0, 5);
-  const selectedRequest = requests.find(item => item.id === selectedRequestId) || visibleRequests[0] || requests[0] || null;
-  const selectedListing = listings.find(item => item.id === selectedListingId) || listings[0] || null;
+  const activeListings   = listings.filter(l => l.status === 'Active' || l.status === 'Low Stock').length;
+  const pendingRequests  = requests.filter(r => r.status === 'Pending' || r.status === 'Negotiating').length;
+  const lowStockCount    = listings.filter(l => l.stockKg <= 90 || l.status === 'Low Stock').length;
+  const estRevenue       = requests.filter(r => r.status === 'Accepted').reduce((s,r) => s + r.qtyKg * r.pricePerKg, 0);
 
-  const activeListings = listings.filter(item => item.status === 'Active' || item.status === 'Low Stock').length;
-  const pendingRequests = requests.filter(item => item.status === 'Pending' || item.status === 'Negotiating').length;
-  const lowStockListings = listings.filter(item => item.stockKg <= 90 || item.status === 'Low Stock').length;
-  const estimatedRevenue = requests.filter(item => item.status === 'Accepted').reduce((sum, item) => sum + item.qtyKg * item.pricePerKg, 0) + listings.filter(item => item.status === 'Active').reduce((sum, item) => sum + item.stockKg * item.pricePerKg * 0.08, 0);
-
-  const categoryMix = ['Vegetables', 'Fruits', 'Herbs', 'Others'].map(category => {
-    const totalStock = listings.filter(item => item.category === category).reduce((sum, item) => sum + item.stockKg, 0);
-    return {
-      category,
-      totalStock
-    };
-  }).filter(item => item.totalStock > 0).sort((a, b) => b.totalStock - a.totalStock);
-
-  const handleRequestAction = (nextStatus, options = {}) => {
-    if (!selectedRequest) return;
-
-    setRequests(current => current.map(item => item.id === selectedRequest.id ? {
-      ...item,
-      status: nextStatus,
-      pricePerKg: options.pricePerKg || item.pricePerKg
-    } : item));
-
-    if (nextStatus === 'Accepted') {
-      pushActivity(`Accepted ${selectedRequest.id} from ${selectedRequest.buyer}`, 'success');
-      pushNotice(`Request ${selectedRequest.id} accepted.`, 'success');
-      return;
-    }
-    if (nextStatus === 'Declined') {
-      pushActivity(`Declined ${selectedRequest.id}`, 'danger');
-      pushNotice(`Request ${selectedRequest.id} declined.`, 'danger');
-      return;
-    }
-    pushActivity(`Sent counter offer for ${selectedRequest.id}`, 'info');
-    pushNotice(`Counter offer saved for ${selectedRequest.id}.`, 'info');
+  // ── Request actions ────────────────────────────────────────────────────────
+  const handleRequestAction = (nextStatus, opts={}) => {
+    if(!selectedRequest) return;
+    const updated = requests.map(r => r.id === selectedRequest.id ? { ...r, status: nextStatus, pricePerKg: opts.pricePerKg ?? r.pricePerKg } : r);
+    saveRequests(updated);
+    pushActivity(`${nextStatus} request ${selectedRequest.id}`, nextStatus === 'Accepted' ? 'success' : nextStatus === 'Declined' ? 'danger' : 'info');
+    pushNotice(`Request ${selectedRequest.id} ${nextStatus.toLowerCase()}.`, nextStatus === 'Declined' ? 'danger' : 'success');
   };
 
   const handleCounterOffer = () => {
-    if (!selectedRequest) return;
-    const price = Math.max(1, Number.parseInt(counterOffer, 10) || selectedRequest.pricePerKg);
-    handleRequestAction('Negotiating', {
-      pricePerKg: price
-    });
+    if(!selectedRequest) return;
+    const price = Math.max(1, parseInt(counterOffer, 10) || selectedRequest.pricePerKg);
+    handleRequestAction('Negotiating', { pricePerKg: price });
   };
 
-  const handleAddListing = event => {
-    event.preventDefault();
-    const product = products.find(item => item.id === listingDraft.productId);
-    const stockKg = Math.max(1, Number.parseInt(listingDraft.stockKg, 10) || 0);
-    const pricePerKg = Math.max(1, Number.parseInt(listingDraft.pricePerKg, 10) || 0);
-
-    if (!product) {
-      pushNotice('Select a product before adding a listing.', 'warning');
-      return;
-    }
-
+  // ── Listing actions ────────────────────────────────────────────────────────
+  const handleAddListing = e => {
+    e.preventDefault();
+    const product  = products.find(p => p.id === listingDraft.productId);
+    const stockKg  = Math.max(1, parseInt(listingDraft.stockKg, 10)    || 0);
+    const pricePerKg = Math.max(1, parseInt(listingDraft.pricePerKg, 10) || 0);
+    if(!product) { pushNotice('Select a product.', 'warning'); return; }
     const newListing = {
-      id: nextListingId(),
+      id: `LIST-${Date.now()}`,
       name: product.name,
       stockKg,
       status: stockKg <= 90 ? 'Low Stock' : listingDraft.status,
       category: product.category || 'Others',
       pricePerKg,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
     };
-
-    setListings(current => [newListing, ...current]);
+    const updated = [newListing, ...listings];
+    saveListings(updated);
     setSelectedListingId(newListing.id);
     setShowAddListing(false);
-    pushActivity(`Added listing ${newListing.name} (${formatKg(stockKg)})`, 'success');
-    pushNotice(`${newListing.name} listing added.`, 'success');
+    pushActivity(`Added listing: ${newListing.name}`, 'success');
+    pushNotice(`${newListing.name} published.`);
   };
 
-  const handleRestockSelected = amount => {
-    if (!selectedListing) return;
-    setListings(current => current.map(item => item.id === selectedListing.id ? {
-      ...item,
-      stockKg: item.stockKg + amount,
-      status: item.stockKg + amount <= 90 ? 'Low Stock' : item.status === 'Paused' ? 'Paused' : 'Active',
-      updatedAt: new Date().toISOString()
-    } : item));
-    pushActivity(`Restocked ${selectedListing.name} by ${formatKg(amount)}`, 'success');
-    pushNotice(`${selectedListing.name} restocked (+${amount} kg).`, 'success');
+  const handleRestock = kg => {
+    if(!selectedListing) return;
+    const updated = listings.map(l => l.id === selectedListing.id ? {
+      ...l, stockKg: l.stockKg + kg,
+      status: l.stockKg + kg <= 90 ? 'Low Stock' : l.status === 'Paused' ? 'Paused' : 'Active',
+      updatedAt: new Date().toISOString(),
+    } : l);
+    saveListings(updated);
+    pushActivity(`Restocked ${selectedListing.name} +${kg}kg`, 'success');
+    pushNotice(`+${kg} kg added to ${selectedListing.name}.`);
   };
 
-  const handleToggleListingStatus = () => {
-    if (!selectedListing) return;
-    const nextStatus = selectedListing.status === 'Paused' ? selectedListing.stockKg <= 90 ? 'Low Stock' : 'Active' : 'Paused';
-    setListings(current => current.map(item => item.id === selectedListing.id ? {
-      ...item,
-      status: nextStatus,
-      updatedAt: new Date().toISOString()
-    } : item));
-    pushActivity(`${selectedListing.name} status changed to ${nextStatus}`, 'info');
-    pushNotice(`${selectedListing.name} is now ${nextStatus}.`, 'info');
+  const handleToggleStatus = () => {
+    if(!selectedListing) return;
+    const next = selectedListing.status === 'Paused' ? (selectedListing.stockKg <= 90 ? 'Low Stock' : 'Active') : 'Paused';
+    const updated = listings.map(l => l.id === selectedListing.id ? { ...l, status: next, updatedAt: new Date().toISOString() } : l);
+    saveListings(updated);
+    pushActivity(`${selectedListing.name} → ${next}`, 'info');
+    pushNotice(`${selectedListing.name} is now ${next}.`, 'info');
   };
 
-  const handleUpdateListingPrice = delta => {
-    if (!selectedListing) return;
-    setListings(current => current.map(item => item.id === selectedListing.id ? {
-      ...item,
-      pricePerKg: Math.max(1, item.pricePerKg + delta),
-      updatedAt: new Date().toISOString()
-    } : item));
+  const handleUpdatePrice = delta => {
+    if(!selectedListing) return;
+    const updated = listings.map(l => l.id === selectedListing.id ? { ...l, pricePerKg: Math.max(1, l.pricePerKg + delta), updatedAt: new Date().toISOString() } : l);
+    saveListings(updated);
     pushActivity(`Updated price for ${selectedListing.name}`, 'info');
-    pushNotice(`${selectedListing.name} price updated.`, 'success');
+    pushNotice(`${selectedListing.name} price updated.`);
   };
 
-  return <div className="farmer-dashboard" style={pageStyle}>
+  // ── Render ─────────────────────────────────────────────────────────────────
+  return (
+    <div className="farmer-dashboard" style={pageStyle}>
       <section className="farmer-hero">
         <div>
           <p className="farmer-hero__kicker">Farmer Dashboard</p>
-          <h1>Welcome back, Youssef!</h1>
-          <p>
-            Handle buyer requests, manage inventory and pricing, and keep your
-            listings healthy from one operational workspace.
-          </p>
+          <h1>Welcome back, {displayName}!</h1>
+          <p>Handle buyer requests, manage inventory and pricing from one workspace.</p>
         </div>
         <div className="farmer-hero__actions">
           <span className="farmer-chip">Farmer</span>
-          <button type="button" className="farmer-button" onClick={() => setShowAddListing(value => !value)}>
+          <button type="button" className="farmer-button" onClick={() => setShowAddListing(v => !v)}>
             {showAddListing ? 'Close Form' : 'Add Listing'}
           </button>
-          <button type="button" className="dash-btn dash-btn--soft" onClick={() => setManageListings(value => !value)}>
+          <button type="button" className="dash-btn dash-btn--soft" onClick={() => setManageListings(v => !v)}>
             {manageListings ? 'Close Manager' : 'Manage Listings'}
           </button>
         </div>
       </section>
 
-      {notice ? <div className={`dash-alert ${notice.type === 'danger' ? 'dash-alert--danger' : notice.type === 'warning' ? 'dash-alert--warning' : 'dash-alert--success'}`}>
-          <span>{notice.message}</span>
-          <button type="button" className="dash-btn dash-btn--compact" onClick={() => setNotice(null)}>
-            Dismiss
-          </button>
-        </div> : null}
+      {notice && (
+        <div className={`dash-alert ${notice.type==='danger'?'dash-alert--danger':notice.type==='warning'?'dash-alert--warning':'dash-alert--success'}`}>
+          <span>{notice.msg}</span>
+          <button type="button" className="dash-btn dash-btn--compact" onClick={() => setNotice(null)}>Dismiss</button>
+        </div>
+      )}
+
+      {!hasSeedData && (
+        <div className="dash-alert dash-alert--warning" style={{display:'flex',alignItems:'center',gap:'1rem'}}>
+          <span>Your dashboard is empty. Load demo data to test all features.</span>
+          <button type="button" className="dash-btn dash-btn--primary" onClick={loadSeedData}>Load Demo Data</button>
+        </div>
+      )}
 
       <section className="farmer-stats">
-        <article>
-          <h3>{activeListings}</h3>
-          <p>Active listings</p>
-          <span>{lowStockListings} need restock</span>
-        </article>
-        <article>
-          <h3>{pendingRequests}</h3>
-          <p>Pending requests</p>
-          <span>Respond to keep ranking high</span>
-        </article>
-        <article>
-          <h3>{formatDh(estimatedRevenue)}</h3>
-          <p>Estimated revenue</p>
-          <span>Accepted orders + active stock</span>
-        </article>
+        <article><h3>{activeListings}</h3><p>Active listings</p><span>{lowStockCount} need restock</span></article>
+        <article><h3>{pendingRequests}</h3><p>Pending requests</p><span>Respond to keep ranking</span></article>
+        <article><h3>{formatDh(estRevenue)}</h3><p>Accepted revenue</p><span>From confirmed orders</span></article>
       </section>
 
       <section className="farmer-grid">
+        {/* ── Requests ── */}
         <div className="farmer-panel">
           <div className="farmer-panel__header">
             <h2>Incoming Requests</h2>
-            <button type="button" onClick={() => setShowAllRequests(value => !value)}>
-              {showAllRequests ? 'Show Recent' : 'View All'}
-            </button>
+            <button type="button" onClick={() => setShowAllRequests(v => !v)}>{showAllRequests ? 'Show Recent' : 'View All'}</button>
           </div>
-
           <div className="dash-panel-stack">
             <div className="dash-toolbar">
               <div className="dash-toolbar__group">
-                <input className="dash-input farmer-panel__search" type="search" value={requestSearch} onChange={event => setRequestSearch(event.target.value)} placeholder="Search request, buyer, product" />
-                <select className="dash-select" value={requestFilter} onChange={event => setRequestFilter(event.target.value)}>
+                <input className="dash-input farmer-panel__search" type="search" value={requestSearch} onChange={e => setRequestSearch(e.target.value)} placeholder="Search request, buyer, product"/>
+                <select className="dash-select" value={requestFilter} onChange={e => setRequestFilter(e.target.value)}>
                   <option value="all">All requests</option>
                   <option value="Pending">Pending</option>
                   <option value="Negotiating">Negotiating</option>
@@ -345,213 +212,150 @@ const FarmerDashboardPage = () => {
                   <option value="Declined">Declined</option>
                 </select>
               </div>
-              <span className="dash-toolbar__meta">
-                {filteredRequests.length} request{filteredRequests.length === 1 ? '' : 's'}
-              </span>
+              <span className="dash-toolbar__meta">{filteredRequests.length} request{filteredRequests.length!==1?'s':''}</span>
             </div>
 
             <div className="farmer-table">
               <div className="farmer-table__head">
-                <span>Request</span>
-                <span>Product</span>
-                <span>Buyer</span>
-                <span>Qty</span>
+                <span>Request</span><span>Product</span><span>Buyer</span><span>Qty</span>
               </div>
-              {visibleRequests.length ? visibleRequests.map(item => <button className={`farmer-table__row farmer-table__row--button${selectedRequestId === item.id ? ' is-active' : ''}`} type="button" key={item.id} onClick={() => setSelectedRequestId(item.id)}>
-                    <span className="farmer-table__id">{item.id}</span>
-                    <span>
-                      {item.product}
-                      <small className="farmer-table__sub">{formatDh(item.pricePerKg)}/kg</small>
-                    </span>
-                    <span>
-                      {item.buyer}
-                      <small className="farmer-table__sub">{item.status}</small>
-                    </span>
-                    <span className="farmer-table__qty">{formatKg(item.qtyKg)}</span>
-                  </button>) : <div className="dash-empty">No requests match your filters.</div>}
+              {visibleRequests.length ? visibleRequests.map(r => (
+                <button key={r.id} type="button"
+                  className={`farmer-table__row farmer-table__row--button${selectedRequestId===r.id?' is-active':''}`}
+                  onClick={() => setSelectedRequestId(r.id)}>
+                  <span className="farmer-table__id">{r.id}</span>
+                  <span>{r.product}<small className="farmer-table__sub">{formatDh(r.pricePerKg)}/kg</small></span>
+                  <span>{r.buyer}<small className="farmer-table__sub">{r.status}</small></span>
+                  <span className="farmer-table__qty">{formatKg(r.qtyKg)}</span>
+                </button>
+              )) : <div className="dash-empty">No requests yet. They'll appear when buyers place orders.</div>}
             </div>
 
-            {selectedRequest ? <div className="dash-section">
+            {selectedRequest && (
+              <div className="dash-section">
                 <div className="dash-toolbar">
                   <div>
                     <p className="dash-section__title">{selectedRequest.id} • {selectedRequest.product}</p>
-                    <p className="dash-section__subtitle">
-                      Buyer: {selectedRequest.buyer} • Delivery: {selectedRequest.deliveryWindow}
-                    </p>
+                    <p className="dash-section__subtitle">Buyer: {selectedRequest.buyer} • Delivery: {selectedRequest.deliveryWindow}</p>
                   </div>
-                  <span className={getFarmerStatusClass(selectedRequest.status)}>{selectedRequest.status}</span>
+                  <span className={getStatusClass(selectedRequest.status)}>{selectedRequest.status}</span>
                 </div>
                 <div className="farmer-request-detail__meta">
                   <span>Qty: {formatKg(selectedRequest.qtyKg)}</span>
                   <span>Offered: {formatDh(selectedRequest.pricePerKg)}/kg</span>
                   <span>Total: {formatDh(selectedRequest.qtyKg * selectedRequest.pricePerKg)}</span>
                 </div>
-                <p className="dash-inline-note">{selectedRequest.note || 'No buyer note provided.'}</p>
+                {selectedRequest.note && <p className="dash-inline-note">{selectedRequest.note}</p>}
                 <div className="dash-form-actions">
-                  <button type="button" className="dash-btn dash-btn--success" onClick={() => handleRequestAction('Accepted')}>
-                    Accept
-                  </button>
-                  <button type="button" className="dash-btn dash-btn--danger" onClick={() => handleRequestAction('Declined')}>
-                    Decline
-                  </button>
+                  <button type="button" className="dash-btn dash-btn--success" onClick={() => handleRequestAction('Accepted')}>Accept</button>
+                  <button type="button" className="dash-btn dash-btn--danger" onClick={() => handleRequestAction('Declined')}>Decline</button>
                   <label className="dash-label farmer-request-detail__counter">
                     Counter offer (DH/kg)
-                    <input className="dash-input" type="number" min="1" value={counterOffer} onChange={event => setCounterOffer(event.target.value)} />
+                    <input className="dash-input" type="number" min="1" value={counterOffer} onChange={e => setCounterOffer(e.target.value)}/>
                   </label>
-                  <button type="button" className="dash-btn" onClick={handleCounterOffer}>
-                    Send Counter Offer
-                  </button>
+                  <button type="button" className="dash-btn" onClick={handleCounterOffer}>Send Counter</button>
                 </div>
-              </div> : null}
+              </div>
+            )}
           </div>
         </div>
 
+        {/* ── Listings ── */}
         <div className="farmer-panel">
           <div className="farmer-panel__header">
             <h2>Listing Management</h2>
-            <button type="button" onClick={() => setManageListings(value => !value)}>
-              {manageListings ? 'Hide Controls' : 'Manage'}
-            </button>
+            <button type="button" onClick={() => setManageListings(v => !v)}>{manageListings ? 'Hide Controls' : 'Manage'}</button>
           </div>
-
           <div className="dash-panel-stack">
             <div className="farmer-listings">
-              {listings.map(item => <button className={`farmer-listings__item farmer-listings__item--button${selectedListingId === item.id ? ' is-active' : ''}`} key={item.id} type="button" onClick={() => setSelectedListingId(item.id)}>
+              {listings.length ? listings.map(l => (
+                <button key={l.id} type="button"
+                  className={`farmer-listings__item farmer-listings__item--button${selectedListingId===l.id?' is-active':''}`}
+                  onClick={() => setSelectedListingId(l.id)}>
                   <div>
-                    <p className="farmer-listings__name">{item.name}</p>
-                    <p className="farmer-listings__stock">
-                      {formatKg(item.stockKg)} • {formatDh(item.pricePerKg)}/kg
-                    </p>
+                    <p className="farmer-listings__name">{l.name}</p>
+                    <p className="farmer-listings__stock">{formatKg(l.stockKg)} • {formatDh(l.pricePerKg)}/kg</p>
                   </div>
-                  <span className={getFarmerStatusClass(item.status)}>{item.status}</span>
-                </button>)}
+                  <span className={getStatusClass(l.status)}>{l.status}</span>
+                </button>
+              )) : <div className="dash-empty">No listings yet. Click "Add Listing" to publish a product.</div>}
             </div>
 
-            {selectedListing ? <div className="dash-section">
+            {selectedListing && (
+              <div className="dash-section">
                 <div className="dash-toolbar">
                   <div>
                     <p className="dash-section__title">{selectedListing.name}</p>
-                    <p className="dash-section__subtitle">
-                      {selectedListing.category} • Updated {formatStamp(selectedListing.updatedAt)}
-                    </p>
+                    <p className="dash-section__subtitle">{selectedListing.category} • Updated {formatStamp(selectedListing.updatedAt)}</p>
                   </div>
-                  <span className={getFarmerStatusClass(selectedListing.status)}>{selectedListing.status}</span>
+                  <span className={getStatusClass(selectedListing.status)}>{selectedListing.status}</span>
                 </div>
                 <div className="farmer-request-detail__meta">
                   <span>Stock: {formatKg(selectedListing.stockKg)}</span>
                   <span>Price: {formatDh(selectedListing.pricePerKg)}/kg</span>
                 </div>
-                {manageListings ? <div className="dash-form-actions">
-                    <button type="button" className="dash-btn dash-btn--success" onClick={() => handleRestockSelected(25)}>
-                      +25 kg
+                {manageListings ? (
+                  <div className="dash-form-actions">
+                    <button type="button" className="dash-btn dash-btn--success" onClick={() => handleRestock(25)}>+25 kg</button>
+                    <button type="button" className="dash-btn dash-btn--success" onClick={() => handleRestock(50)}>+50 kg</button>
+                    <button type="button" className="dash-btn" onClick={() => handleUpdatePrice(1)}>+1 DH</button>
+                    <button type="button" className="dash-btn" onClick={() => handleUpdatePrice(-1)}>−1 DH</button>
+                    <button type="button" className="dash-btn dash-btn--soft" onClick={handleToggleStatus}>
+                      {selectedListing.status === 'Paused' ? 'Resume' : 'Pause'}
                     </button>
-                    <button type="button" className="dash-btn dash-btn--success" onClick={() => handleRestockSelected(50)}>
-                      +50 kg
-                    </button>
-                    <button type="button" className="dash-btn" onClick={() => handleUpdateListingPrice(1)}>
-                      +1 DH
-                    </button>
-                    <button type="button" className="dash-btn" onClick={() => handleUpdateListingPrice(-1)}>
-                      -1 DH
-                    </button>
-                    <button type="button" className="dash-btn dash-btn--soft" onClick={handleToggleListingStatus}>
-                      {selectedListing.status === 'Paused' ? 'Resume Listing' : 'Pause Listing'}
-                    </button>
-                  </div> : <p className="dash-inline-note">Enable “Manage Listings” to restock, pause, or update pricing.</p>}
-              </div> : null}
+                  </div>
+                ) : <p className="dash-inline-note">Enable "Manage Listings" to restock, pause, or update pricing.</p>}
+              </div>
+            )}
 
-            {showAddListing ? <form className="dash-section" onSubmit={handleAddListing}>
-                <div>
-                  <p className="dash-section__title">Add New Listing</p>
-                  <p className="dash-section__subtitle">
-                    Publish a new product offer to the marketplace.
-                  </p>
-                </div>
+            {showAddListing && (
+              <form className="dash-section" onSubmit={handleAddListing}>
+                <p className="dash-section__title">Add New Listing</p>
                 <div className="dash-field-grid">
-                  <label className="dash-label">
-                    Product template
-                    <select className="dash-select" value={listingDraft.productId} onChange={event => {
-                    const product = products.find(item => item.id === event.target.value);
-                    setListingDraft(current => ({
-                      ...current,
-                      productId: event.target.value,
-                      pricePerKg: String(product ? Math.round(Number.parseFloat(String(product.price).replace(/[^\d.]/g, '')) || 1) : current.pricePerKg)
-                    }));
-                  }}>
-                      {products.map(product => <option key={product.id} value={product.id}>
-                          {product.name} ({product.category})
-                        </option>)}
+                  <label className="dash-label">Product
+                    <select className="dash-select" value={listingDraft.productId} onChange={e => {
+                      const p = products.find(p => p.id === e.target.value);
+                      setListingDraft(d => ({ ...d, productId: e.target.value, pricePerKg: p ? String(Math.round(parseFloat(String(p.price).replace(/[^\d.]/g,''))||1)) : d.pricePerKg }));
+                    }}>
+                      {products.map(p => <option key={p.id} value={p.id}>{p.name} ({p.category})</option>)}
                     </select>
                   </label>
-                  <label className="dash-label">
-                    Stock (kg)
-                    <input className="dash-input" type="number" min="1" value={listingDraft.stockKg} onChange={event => setListingDraft(current => ({
-                    ...current,
-                    stockKg: event.target.value
-                  }))} />
+                  <label className="dash-label">Stock (kg)
+                    <input className="dash-input" type="number" min="1" value={listingDraft.stockKg} onChange={e => setListingDraft(d => ({...d,stockKg:e.target.value}))}/>
                   </label>
-                  <label className="dash-label">
-                    Price (DH/kg)
-                    <input className="dash-input" type="number" min="1" value={listingDraft.pricePerKg} onChange={event => setListingDraft(current => ({
-                    ...current,
-                    pricePerKg: event.target.value
-                  }))} />
+                  <label className="dash-label">Price (DH/kg)
+                    <input className="dash-input" type="number" min="1" value={listingDraft.pricePerKg} onChange={e => setListingDraft(d => ({...d,pricePerKg:e.target.value}))}/>
                   </label>
-                  <label className="dash-label">
-                    Initial status
-                    <select className="dash-select" value={listingDraft.status} onChange={event => setListingDraft(current => ({
-                    ...current,
-                    status: event.target.value
-                  }))}>
+                  <label className="dash-label">Status
+                    <select className="dash-select" value={listingDraft.status} onChange={e => setListingDraft(d => ({...d,status:e.target.value}))}>
                       <option value="Active">Active</option>
                       <option value="Paused">Paused</option>
                     </select>
                   </label>
                 </div>
                 <div className="dash-form-actions">
-                  <button type="submit" className="dash-btn dash-btn--primary">
-                    Publish Listing
-                  </button>
-                  <button type="button" className="dash-btn" onClick={() => setShowAddListing(false)}>
-                    Close
-                  </button>
+                  <button type="submit" className="dash-btn dash-btn--primary">Publish Listing</button>
+                  <button type="button" className="dash-btn" onClick={() => setShowAddListing(false)}>Close</button>
                 </div>
-              </form> : null}
-
-            <div className="dash-section">
-              <p className="dash-section__title">Inventory Mix</p>
-              <div className="dash-metric-bars">
-                {categoryMix.length ? categoryMix.map(row => {
-                const maxStock = categoryMix[0]?.totalStock || 1;
-                return <div className="dash-metric-bars__row" key={row.category}>
-                        <div className="dash-metric-bars__head">
-                          <span>{row.category}</span>
-                          <span>{formatKg(row.totalStock)}</span>
-                        </div>
-                        <div className="dash-metric-bars__track">
-                          <div className="dash-metric-bars__fill" style={{
-                        width: `${Math.max(8, Math.round(row.totalStock / maxStock * 100))}%`
-                      }} />
-                        </div>
-                      </div>;
-              }) : <div className="dash-empty">Add listings to see inventory composition.</div>}
-              </div>
-            </div>
+              </form>
+            )}
 
             <div className="dash-section">
               <p className="dash-section__title">Recent Activity</p>
               <div className="dash-log">
-                {activity.map(entry => <div className="dash-log__item" key={entry.id}>
-                    <p>{entry.text}</p>
-                    <div className="dash-log__time">{formatStamp(entry.createdAt)}</div>
-                  </div>)}
+                {activity.map(e => (
+                  <div key={e.id} className="dash-log__item">
+                    <p>{e.text}</p>
+                    <div className="dash-log__time">{formatStamp(e.createdAt)}</div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         </div>
       </section>
-    </div>;
+    </div>
+  );
 };
 
 export default FarmerDashboardPage;
-
