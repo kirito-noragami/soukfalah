@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useCart } from '../../../app/providers/CartProvider';
 import './AddToCartButton.css';
 
-const AddToCartButton = ({ product, quantity = 1, label = 'Add to Cart' }) => {
-  const { addItem } = useCart();
+const AddToCartButton = ({ product, quantity = 1 }) => {
+  const { addItem } = useCart();   // SAFE
   const [added, setAdded] = useState(false);
 
   const handleClick = () => {
@@ -16,7 +16,7 @@ const AddToCartButton = ({ product, quantity = 1, label = 'Add to Cart' }) => {
   return (
     <div className="product-add-cart__wrap">
       <button className="product-add-cart" type="button" onClick={handleClick}>
-        {added ? '✓ Added to Cart!' : label}
+        {added ? '✓ Added to Cart!' : 'Add to Cart'}
       </button>
     </div>
   );

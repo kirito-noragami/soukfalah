@@ -1,118 +1,144 @@
 import { useState } from 'react';
 import fieldsImage from '../../assets/images/home-fields.png';
-import { useCart } from '../../app/providers/CartProvider';
 import { navigateTo } from '../../app/navigation';
+import { useCart } from '../../app/providers/CartProvider';
+import { useAuth } from '../../app/providers/AuthProvider';
 import OrderSummaryCard from './components/OrderSummaryCard';
 import './CheckoutPage.css';
 
-const CheckoutPage = () => {
-  const { items, total, clearCart } = useCart();
-  const [form, setForm] = useState({ fullName: '', email: '', address: '', phone: '', payment: 'card' });
-  const [errors, setErrors] = useState({});
-  const [submitting, setSubmitting] = useState(false);
+const Field = ({ label, children }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', marginBottom: '1rem' }}>
+    <label style={{ fontSize: '0.83rem', fontWeight: 600, opacity: 0.7 }}>{label}</label>
+    {children}
+  </div>
+);
 
-  const pageStyle = { '--checkout-fields-image': `url(${fieldsImage})` };
+const inputStyle = {
+  padding: '0.6rem 0.9rem', borderRadius: '8px',
+  border: '1px solid var(--color-line-strong, #ccc)',
+  fontSize: '0.95rem', background: 'transparent', color: 'inherit',
+  width: '100%', boxSizing: 'border-box',
+};
+
+const CheckoutPage = () => {
+  const { items, total, clearCart } = useCart();  // SAFE
+  const { fullName }                = useAuth();  // SAFE
+  const [loading, setLoading]       = useState(false);
+  const [errors,  setErrors]        = useState({});
+  const [form, setForm] = useState({
+    fullName: fullName ?? '',
+    email:    '',
+    address:  '',
+    phone:    '',
+    payment:  'card',
+  });
+
+  const set = (k) => (e) => {
+    setForm(prev => ({ ...prev, [k]: e.target.value }));
+    setErrors(prev => ({ ...prev, [k]: '' }));
+  };
 
   const validate = () => {
     const e = {};
-    if (!form.fullName.trim()) e.fullName = 'Full name is required';
-    if (!form.email.trim() || !/\S+@\S+\.\S+/.test(form.email)) e.email = 'Valid email is required';
-    if (!form.address.trim()) e.address = 'Shipping address is required';
-    if (!form.phone.trim()) e.phone = 'Phone number is required';
+    if (!form.fullName.trim()) e.fullName = 'Required';
+    if (!form.email.trim() || !/\S+@\S+\.\S+/.test(form.email)) e.email = 'Valid email required';
+    if (!form.address.trim()) e.address = 'Required';
+    if (!form.phone.trim()) e.phone = 'Required';
     return e;
-  };
-
-  const handleChange = (field) => (e) => {
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
-    setErrors((prev) => ({ ...prev, [field]: '' }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const e2 = validate();
-    if (Object.keys(e2).length > 0) { setErrors(e2); return; }
-    setSubmitting(true);
+    const errs = validate();
+    if (Object.keys(errs).length) { setErrors(errs); return; }
 
-    // Save order to localStorage
+    setLoading(true);
     const order = {
-      id: `SO-${Date.now()}`,
-      items,
+      id:       `SO-${Date.now()}`,
+      items:    [...items],
       total,
       shipping: { fullName: form.fullName, email: form.email, address: form.address, phone: form.phone },
-      payment: form.payment,
-      status: 'Preparing',
+      payment:  form.payment,
+      status:   'Preparing',
       createdAt: new Date().toISOString(),
     };
-
     try {
-      const existing = JSON.parse(localStorage.getItem('soukfalah-orders') || '[]');
-      localStorage.setItem('soukfalah-orders', JSON.stringify([order, ...existing]));
+      const prev = JSON.parse(localStorage.getItem('soukfalah-orders') || '[]');
+      localStorage.setItem('soukfalah-orders', JSON.stringify([order, ...prev]));
     } catch {}
 
     clearCart();
-    setTimeout(() => navigateTo('/order-success'), 400);
+    setTimeout(() => navigateTo('/order-success'), 300);
   };
 
   if (items.length === 0) {
     return (
-      <div className="checkout-page" style={pageStyle}>
+      <div className="checkout-page" style={{ '--checkout-fields-image': `url(${fieldsImage})` }}>
         <header className="checkout-hero"><h1 className="checkout-hero__title">Checkout</h1></header>
         <div style={{ padding: '3rem', textAlign: 'center', opacity: 0.6 }}>
           <p>Your cart is empty.</p>
-          <a href="/marketplace" style={{ textDecoration: 'underline', marginTop: '1rem', display: 'inline-block' }}>Go shopping</a>
+          <a href="/marketplace" style={{ textDecoration: 'underline', display: 'inline-block', marginTop: '1rem' }}>
+            Go shopping
+          </a>
         </div>
       </div>
     );
   }
 
-  const fieldStyle = { display: 'flex', flexDirection: 'column', gap: '0.3rem', marginBottom: '1rem' };
-  const labelStyle = { fontSize: '0.85rem', fontWeight: 600, opacity: 0.75 };
-  const inputStyle = { padding: '0.6rem 0.8rem', borderRadius: '8px', border: '1px solid var(--color-border, #ddd)', fontSize: '0.95rem', background: 'transparent', color: 'inherit' };
-  const errStyle = { color: 'red', fontSize: '0.78rem' };
-
   return (
-    <div className="checkout-page" style={pageStyle}>
-      <header className="checkout-hero"><h1 className="checkout-hero__title">Checkout</h1></header>
+    <div className="checkout-page" style={{ '--checkout-fields-image': `url(${fieldsImage})` }}>
+      <header className="checkout-hero">
+        <h1 className="checkout-hero__title">Checkout</h1>
+      </header>
+
       <section className="checkout-grid">
         <div className="shipping-form">
           <div className="shipping-form__header"><h2>Shipping Information</h2></div>
-          <form className="shipping-form__body" onSubmit={handleSubmit}>
-            <div style={fieldStyle}>
-              <label style={labelStyle}>Full Name</label>
-              <input style={inputStyle} type="text" placeholder="Enter your full name" value={form.fullName} onChange={handleChange('fullName')} />
-              {errors.fullName && <span style={errStyle}>{errors.fullName}</span>}
-            </div>
-            <div style={fieldStyle}>
-              <label style={labelStyle}>Email Address</label>
-              <input style={inputStyle} type="email" placeholder="Enter your email" value={form.email} onChange={handleChange('email')} />
-              {errors.email && <span style={errStyle}>{errors.email}</span>}
-            </div>
-            <div style={fieldStyle}>
-              <label style={labelStyle}>Shipping Address</label>
-              <input style={inputStyle} type="text" placeholder="Enter your shipping address" value={form.address} onChange={handleChange('address')} />
-              {errors.address && <span style={errStyle}>{errors.address}</span>}
-            </div>
-            <div style={fieldStyle}>
-              <label style={labelStyle}>Phone Number</label>
-              <input style={inputStyle} type="tel" placeholder="Enter your phone number" value={form.phone} onChange={handleChange('phone')} />
-              {errors.phone && <span style={errStyle}>{errors.phone}</span>}
-            </div>
-            <div style={fieldStyle}>
-              <label style={labelStyle}>Payment Method</label>
-              <select style={inputStyle} value={form.payment} onChange={handleChange('payment')}>
+          <form className="shipping-form__body" onSubmit={handleSubmit} noValidate>
+
+            <Field label="Full Name">
+              <input style={inputStyle} type="text" value={form.fullName} onChange={set('fullName')} placeholder="Your full name" />
+              {errors.fullName && <span style={{ color: '#c0392b', fontSize: '0.78rem' }}>{errors.fullName}</span>}
+            </Field>
+
+            <Field label="Email">
+              <input style={inputStyle} type="email" value={form.email} onChange={set('email')} placeholder="your@email.com" />
+              {errors.email && <span style={{ color: '#c0392b', fontSize: '0.78rem' }}>{errors.email}</span>}
+            </Field>
+
+            <Field label="Shipping Address">
+              <input style={inputStyle} type="text" value={form.address} onChange={set('address')} placeholder="Street, City" />
+              {errors.address && <span style={{ color: '#c0392b', fontSize: '0.78rem' }}>{errors.address}</span>}
+            </Field>
+
+            <Field label="Phone Number">
+              <input style={inputStyle} type="tel" value={form.phone} onChange={set('phone')} placeholder="+212 6xx xxx xxx" />
+              {errors.phone && <span style={{ color: '#c0392b', fontSize: '0.78rem' }}>{errors.phone}</span>}
+            </Field>
+
+            <Field label="Payment Method">
+              <select style={inputStyle} value={form.payment} onChange={set('payment')}>
                 <option value="card">Credit / Debit Card</option>
                 <option value="cash">Cash on Delivery</option>
               </select>
-            </div>
+            </Field>
+
             <button
               type="submit"
-              disabled={submitting}
-              style={{ width: '100%', padding: '0.85rem', borderRadius: '10px', border: 'none', background: '#4caf50', color: '#fff', fontWeight: 700, fontSize: '1rem', cursor: submitting ? 'not-allowed' : 'pointer', marginTop: '0.5rem' }}
+              disabled={loading}
+              style={{
+                width: '100%', padding: '0.9rem', borderRadius: '10px',
+                border: 'none', background: '#2f4b31', color: '#fff',
+                fontWeight: 700, fontSize: '1rem',
+                cursor: loading ? 'wait' : 'pointer', marginTop: '0.5rem',
+              }}
             >
-              {submitting ? 'Placing Order…' : `Place Order • ${total.toFixed(2)} DH`}
+              {loading ? 'Placing Order…' : `Place Order · ${total.toFixed(2)} DH`}
             </button>
+
           </form>
         </div>
+
         <OrderSummaryCard items={items} />
       </section>
     </div>

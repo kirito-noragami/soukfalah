@@ -8,35 +8,43 @@ import AuthSubmitButton from './components/AuthSubmitButton';
 import './LoginPage.css';
 
 const LoginPage = () => {
-  const { login } = useAuth();
+  const auth = useAuth();                      // SAFE – never null
   const [error, setError] = useState('');
-  const pageStyle = { '--auth-bg-image': `url(${fieldsImage})` };
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const username = String(formData.get('username') || '').trim().toLowerCase();
-    const password = String(formData.get('password') || '').trim().toLowerCase();
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setError('');
+    const fd       = new FormData(e.currentTarget);
+    const username = String(fd.get('username') || '').trim();
+    const password = String(fd.get('password') || '').trim();
 
-    let role = null;
-    if (username === 'admin' && password === 'admin') role = 'admin';
-    else if (username === 'buyer' && password === 'buyer') role = 'buyer';
-    else if (username === 'farmer' && password === 'farmer') role = 'farmer';
-
-    if (!role) {
-      setError('Invalid credentials. Try admin/admin, buyer/buyer, or farmer/farmer.');
+    if (!username || !password) {
+      setError('Please fill in both fields.');
       return;
     }
 
-    setError('');
-    login(username, role);
+    const result = auth.login(username, password);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
     navigateTo('/');
   };
 
   return (
-    <div className="auth-page" style={pageStyle}>
-      <AuthCard title="Log In" subtitle="Welcome back to SoukFellah" footer={<><span>Don't have an account?</span><a href="/register">Create an account</a></>}>
-        <form className="auth-form" onSubmit={handleSubmit}>
+    <div className="auth-page" style={{ '--auth-bg-image': `url(${fieldsImage})` }}>
+      <AuthCard
+        title="Log In"
+        subtitle="Welcome back to SoukFellah"
+        footer={
+          <>
+            <span>No account yet?</span>
+            <a href="/register">Create one</a>
+          </>
+        }
+      >
+        <form className="auth-form" onSubmit={handleSubmit} noValidate>
+          {/* Username */}
           <label className="auth-field">
             <span className="auth-field__icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -44,11 +52,33 @@ const LoginPage = () => {
                 <circle cx="12" cy="8" r="4" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </span>
-            <input type="text" name="username" placeholder="Username" autoComplete="username" required />
+            <input
+              type="text"
+              name="username"
+              placeholder="Username"
+              autoComplete="username"
+            />
           </label>
+
+          {/* Password */}
           <PasswordField />
+
+          {/* Error */}
+          {error && (
+            <p style={{
+              color: '#c0392b', fontSize: '0.83rem', margin: 0,
+              padding: '0.4rem 0.6rem', background: 'rgba(192,57,43,0.07)',
+              borderRadius: '8px', textAlign: 'center',
+            }}>
+              {error}
+            </p>
+          )}
+
           <AuthSubmitButton label="Log In" />
-          {error && <span className="auth-error">{error}</span>}
+
+          <p style={{ fontSize: '0.75rem', opacity: 0.5, textAlign: 'center', margin: 0 }}>
+            Demo: admin/admin · buyer/buyer · farmer/farmer
+          </p>
         </form>
       </AuthCard>
     </div>

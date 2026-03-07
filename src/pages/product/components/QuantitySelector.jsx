@@ -2,19 +2,35 @@ import { useState } from 'react';
 import './QuantitySelector.css';
 
 const QuantitySelector = ({ min = 1, max = 99, initial = 1, onChange }) => {
-  const [quantity, setQuantity] = useState(initial);
+  const [qty, setQty] = useState(initial);
 
-  const update = (next) => {
-    const clamped = Math.max(min, Math.min(max, next));
-    setQuantity(clamped);
-    onChange?.(clamped);
+  const update = (n) => {
+    const v = Math.max(min, Math.min(max, n));
+    setQty(v);
+    onChange?.(v);
   };
 
   return (
-    <div className="quantity-selector" aria-label="Quantity selector">
-      <button className="quantity-selector__button" type="button" onClick={() => update(quantity - 1)} aria-label="Decrease quantity">-</button>
-      <span className="quantity-selector__value">{quantity}</span>
-      <button className="quantity-selector__button" type="button" onClick={() => update(quantity + 1)} aria-label="Increase quantity">+</button>
+    <div className="quantity-selector" aria-label="Quantity">
+      <button
+        className="quantity-selector__button"
+        type="button"
+        onClick={() => update(qty - 1)}
+        disabled={qty <= min}
+        aria-label="Decrease quantity"
+      >
+        −
+      </button>
+      <span className="quantity-selector__value">{qty}</span>
+      <button
+        className="quantity-selector__button"
+        type="button"
+        onClick={() => update(qty + 1)}
+        disabled={qty >= max}
+        aria-label="Increase quantity"
+      >
+        +
+      </button>
     </div>
   );
 };

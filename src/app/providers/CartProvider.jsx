@@ -1,67 +1,98 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-
-const CartContext = createContext(null);
-
-export const useCart = () => {
-  const ctx = useContext(CartContext);
-  // Safe fallback if used outside provider (prevents crashes)
-  if (!ctx) return { items: [], total: 0, count: 0, addItem: () => {}, removeItem: () => {}, updateQty: () => {}, setQty: () => {}, clearCart: () => {} };
-  return ctx;
-};
+/**
+ * Cart — module-level singleton store.
+ * useCart() works from ANY component with zero Provider required.
+ */
+import { useCallback, useSyncExternalStore } from 'react';
 
 const CART_KEY = 'soukfalah-cart';
 
-const parsePrice = (value) => {
-  const n = Number.parseFloat(String(value).replace(/[^\d.]/g, ''));
+// ─── localStorage helpers ─────────────────────────────────────────────────────
+const parsePrice = (v) => {
+  const n = Number.parseFloat(String(v).replace(/[^\d.]/g, ''));
   return Number.isFinite(n) ? n : 0;
 };
 
-const loadCart = () => {
-  try {
-    const raw = localStorage.getItem(CART_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
+const readCart = () => {
+  try { return JSON.parse(localStorage.getItem(CART_KEY) || '[]'); }
+  catch { return []; }
 };
 
-const CartProvider = ({ children }) => {
-  const [items, setItems] = useState(loadCart);
+const writeCart = (items) => {
+  try { localStorage.setItem(CART_KEY, JSON.stringify(items)); }
+  catch {}
+};
 
-  useEffect(() => {
-    try { localStorage.setItem(CART_KEY, JSON.stringify(items)); } catch {}
-  }, [items]);
+// ─── Module store ─────────────────────────────────────────────────────────────
+let _items  = readCart();
+const _subs = new Set();
+const _notify = () => _subs.forEach(fn => fn());
 
-  const addItem = useCallback((product, quantity = 1) => {
-    const price = parsePrice(product.price);
-    setItems((prev) => {
-      const existing = prev.find((i) => i.id === product.id);
-      if (existing) {
-        return prev.map((i) => i.id === product.id ? { ...i, quantity: i.quantity + quantity } : i);
-      }
-      return [...prev, { id: product.id, name: product.name, price, unit: product.unit, quantity, accent: product.accent, farmer: product.farmer?.name ?? '' }];
-    });
-  }, []);
+const _subscribe     = (cb) => { _subs.add(cb); return () => _subs.delete(cb); };
+const _getSnap       = ()   => _items;
+const _getServerSnap = ()   => [];
 
-  const removeItem = useCallback((id) => setItems((prev) => prev.filter((i) => i.id !== id)), []);
+// ─── Cart actions ─────────────────────────────────────────────────────────────
+export const cartAdd = (product, qty = 1) => {
+  if (!product) return;
+  const price    = parsePrice(product.price);
+  const existing = _items.find(i => i.id === product.id);
+  if (existing) {
+    _items = _items.map(i =>
+      i.id === product.id ? { ...i, quantity: i.quantity + qty } : i
+    );
+  } else {
+    _items = [
+      ..._items,
+      {
+        id:       product.id,
+        name:     product.name,
+        price,
+        unit:     product.unit,
+        quantity: qty,
+        accent:   product.accent ?? '#888',
+        farmer:   product.farmer?.name ?? '',
+      },
+    ];
+  }
+  writeCart(_items);
+  _notify();
+};
 
-  const updateQty = useCallback((id, delta) => {
-    setItems((prev) => prev.map((i) => i.id === id ? { ...i, quantity: Math.max(1, i.quantity + delta) } : i));
-  }, []);
+export const cartRemove = (id) => {
+  _items = _items.filter(i => i.id !== id);
+  writeCart(_items);
+  _notify();
+};
 
-  const setQty = useCallback((id, quantity) => {
-    if (quantity <= 0) setItems((prev) => prev.filter((i) => i.id !== id));
-    else setItems((prev) => prev.map((i) => i.id === id ? { ...i, quantity } : i));
-  }, []);
-
-  const clearCart = useCallback(() => setItems([]), []);
-
-  const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
-  const count = items.reduce((sum, i) => sum + i.quantity, 0);
-
-  return (
-    <CartContext.Provider value={{ items, total, count, addItem, removeItem, updateQty, setQty, clearCart }}>
-      {children}
-    </CartContext.Provider>
+export const cartUpdateQty = (id, delta) => {
+  _items = _items.map(i =>
+    i.id === id ? { ...i, quantity: Math.max(1, i.quantity + delta) } : i
   );
+  writeCart(_items);
+  _notify();
 };
 
+export const cartClear = () => {
+  _items = [];
+  writeCart(_items);
+  _notify();
+};
+
+// ─── Hook ─────────────────────────────────────────────────────────────────────
+export const useCart = () => {
+  const items = useSyncExternalStore(_subscribe, _getSnap, _getServerSnap);
+
+  const addItem    = useCallback((p, q)  => cartAdd(p, q),      []);
+  const removeItem = useCallback((id)    => cartRemove(id),      []);
+  const updateQty  = useCallback((id, d) => cartUpdateQty(id, d),[]);
+  const clearCart  = useCallback(()      => cartClear(),          []);
+
+  const total = items.reduce((s, i) => s + i.price * i.quantity, 0);
+  const count = items.reduce((s, i) => s + i.quantity,           0);
+
+  return { items, total, count, addItem, removeItem, updateQty, clearCart };
+};
+
+// ─── Provider — passthrough, kept for compatibility with main.jsx ─────────────
+const CartProvider = ({ children }) => children;
 export default CartProvider;
