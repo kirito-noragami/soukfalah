@@ -44,21 +44,27 @@ const MapCanvas = ({
   onDeselect
 }) => {
   const selectedFarm = useMemo(() => farms.find(farm => farm.id === selectedFarmId), [farms, selectedFarmId]);
-  const markerIcons = useMemo(() => Object.fromEntries(farms.map(farm => [farm.id, createFarmIcon(farm.accent, farm.id === selectedFarmId)])), [farms, selectedFarmId]);
+
+  // Only render markers for farms that have valid coordinates
+  const mappableFarms = useMemo(() => farms.filter(farm => farm.coordinates?.lat != null && farm.coordinates?.lng != null), [farms]);
+
+  const markerIcons = useMemo(() => Object.fromEntries(mappableFarms.map(farm => [farm.id, createFarmIcon(farm.accent, farm.id === selectedFarmId)])), [mappableFarms, selectedFarmId]);
+
   if (!farms.length) {
     return <div className="map-canvas map-canvas--empty">
         <p>No farms match your search.</p>
       </div>;
   }
+
   return <div className="map-canvas">
       <MapContainer className="map-canvas__leaflet" center={MOROCCO_CENTER} zoom={MOROCCO_ZOOM} minZoom={5} maxZoom={17} scrollWheelZoom>
         <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
         <MapController selectedFarm={selectedFarm} onDeselect={onDeselect} />
 
-        {farms.map(farm => <Marker key={farm.id} position={[farm.coordinates.lat, farm.coordinates.lng]} icon={markerIcons[farm.id]} eventHandlers={{
-        click: () => onSelectFarm?.(farm.id)
-      }}>
+        {mappableFarms.map(farm => <Marker key={farm.id} position={[farm.coordinates.lat, farm.coordinates.lng]} icon={markerIcons[farm.id]} eventHandlers={{
+          click: () => onSelectFarm?.(farm.id)
+        }}>
             <Popup>
               <div className="map-canvas__popup">
                 <strong>{farm.name}</strong>
@@ -75,4 +81,5 @@ const MapCanvas = ({
       </MapContainer>
     </div>;
 };
+
 export default MapCanvas;

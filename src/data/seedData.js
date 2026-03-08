@@ -1,75 +1,101 @@
 /**
  * seedData.js
- * Call seedAll() from the browser console to fill localStorage with demo data.
- * Or import and call it from a component.
+ * Demo data for the Midelt Atlas farm (owned by the `farmer` demo account).
+ *
+ * Association:
+ *   farmer account (username: 'farmer') → farm-midelt-apples → 5 products
+ *   3 demo orders (buyer perspective)
+ *   5 listings   (farmer perspective — one per product)
+ *   3 requests   (incoming buyer requests for the farmer)
  */
 
-export const DEMO_PRODUCTS = [
-  { id: 'fresh-tomatoes', name: 'Organic Tomatoes', price: 15, unit: 'kg', accent: '#d96a54', farmer: 'Hamid Merabet' },
-  { id: 'organic-apples', name: 'Organic Apples',   price: 12, unit: 'kg', accent: '#d9b96f', farmer: 'Amina Idrissi' },
-  { id: 'ripe-strawberries', name: 'Ripe Strawberries', price: 20, unit: 'kg', accent: '#d86a89', farmer: 'Karima Zouali' },
-  { id: 'crisp-lettuce', name: 'Crisp Lettuce',     price: 8,  unit: 'kg', accent: '#7fa96b', farmer: 'Youssef Naji'  },
-  { id: 'fresh-mint',    name: 'Fresh Mint',        price: 5,  unit: 'bunch', accent: '#4aad8b', farmer: 'Rachid Benali' },
-];
-
+// ── Orders (buyer sees these in their dashboard) ─────────────────────────────
 export const DEMO_ORDERS = [
   {
     id: 'SO-001',
     status: 'Delivered',
     payment: 'card',
-    total: 180,
+    total: 184,
     createdAt: new Date(Date.now() - 7 * 86400000).toISOString(),
     eta: 'Delivered',
     items: [
-      { id: 'fresh-tomatoes', name: 'Organic Tomatoes', price: 15, unit: 'kg', quantity: 8, accent: '#d96a54', farmer: 'Hamid Merabet' },
-      { id: 'crisp-lettuce',  name: 'Crisp Lettuce',    price: 8,  unit: 'kg', quantity: 6, accent: '#7fa96b', farmer: 'Youssef Naji'  },
-      { id: 'fresh-mint',     name: 'Fresh Mint',       price: 5,  unit: 'bunch', quantity: 6, accent: '#4aad8b', farmer: 'Rachid Benali' },
+      { id: 'midelt-apples',  name: 'Atlas Apples',   price: 11, unit: 'kg',  quantity: 8, accent: '#c8b45a', farmer: 'Youssef Atlas' },
+      { id: 'midelt-pears',   name: 'Atlas Pears',    price: 14, unit: 'kg',  quantity: 4, accent: '#a8c87e', farmer: 'Youssef Atlas' },
+      { id: 'midelt-honey',   name: 'Atlas Blossom Honey', price: 80, unit: 'jar', quantity: 1, accent: '#d4a843', farmer: 'Youssef Atlas' },
     ],
-    shipping: { fullName: 'Test User', email: 'test@soukfellah.ma', address: 'Agadir', phone: '0600000001' },
+    shipping: { fullName: 'Demo Buyer', email: 'buyer@soukfellah.ma', address: 'Agadir, Souss-Massa', phone: '0600000001' },
   },
   {
     id: 'SO-002',
     status: 'In Transit',
     payment: 'card',
-    total: 260,
+    total: 269,
     createdAt: new Date(Date.now() - 2 * 86400000).toISOString(),
     eta: 'Today 18:00',
     items: [
-      { id: 'organic-apples',    name: 'Organic Apples',    price: 12, unit: 'kg', quantity: 10, accent: '#d9b96f', farmer: 'Amina Idrissi'  },
-      { id: 'ripe-strawberries', name: 'Ripe Strawberries', price: 20, unit: 'kg', quantity: 5,  accent: '#d86a89', farmer: 'Karima Zouali' },
-      { id: 'fresh-mint',        name: 'Fresh Mint',        price: 5,  unit: 'bunch', quantity: 8, accent: '#4aad8b', farmer: 'Rachid Benali' },
-      { id: 'fresh-tomatoes',    name: 'Organic Tomatoes',  price: 15, unit: 'kg', quantity: 4,  accent: '#d96a54', farmer: 'Hamid Merabet' },
+      { id: 'midelt-golden-apples', name: 'Golden Apples',     price: 13, unit: 'kg', quantity: 10, accent: '#dfc55c', farmer: 'Youssef Atlas' },
+      { id: 'midelt-walnuts',       name: 'Mountain Walnuts',  price: 45, unit: 'kg', quantity: 3,  accent: '#a87c50', farmer: 'Youssef Atlas' },
+      { id: 'midelt-apples',        name: 'Atlas Apples',      price: 11, unit: 'kg', quantity: 4,  accent: '#c8b45a', farmer: 'Youssef Atlas' },
     ],
-    shipping: { fullName: 'Test User', email: 'test@soukfellah.ma', address: 'Agadir', phone: '0600000001' },
+    shipping: { fullName: 'Demo Buyer', email: 'buyer@soukfellah.ma', address: 'Agadir, Souss-Massa', phone: '0600000001' },
   },
   {
     id: 'SO-003',
     status: 'Preparing',
     payment: 'cash',
-    total: 95,
+    total: 117,
     createdAt: new Date(Date.now() - 1 * 86400000).toISOString(),
     eta: 'Tomorrow',
     items: [
-      { id: 'fresh-tomatoes', name: 'Organic Tomatoes', price: 15, unit: 'kg', quantity: 5, accent: '#d96a54', farmer: 'Hamid Merabet' },
-      { id: 'crisp-lettuce',  name: 'Crisp Lettuce',    price: 8,  unit: 'kg', quantity: 4, accent: '#7fa96b', farmer: 'Youssef Naji'  },
-      { id: 'fresh-mint',     name: 'Fresh Mint',       price: 5,  unit: 'bunch', quantity: 3, accent: '#4aad8b', farmer: 'Rachid Benali' },
+      { id: 'midelt-apples', name: 'Atlas Apples', price: 11, unit: 'kg',  quantity: 5, accent: '#c8b45a', farmer: 'Youssef Atlas' },
+      { id: 'midelt-pears',  name: 'Atlas Pears',  price: 14, unit: 'kg',  quantity: 3, accent: '#a8c87e', farmer: 'Youssef Atlas' },
+      { id: 'midelt-honey',  name: 'Atlas Blossom Honey', price: 80, unit: 'jar', quantity: 1, accent: '#d4a843', farmer: 'Youssef Atlas' },
     ],
-    shipping: { fullName: 'Test User', email: 'test@soukfellah.ma', address: 'Agadir', phone: '0600000001' },
+    shipping: { fullName: 'Demo Buyer', email: 'buyer@soukfellah.ma', address: 'Agadir, Souss-Massa', phone: '0600000001' },
   },
 ];
 
+// ── Listings (farmer sees these in their dashboard) ──────────────────────────
 export const DEMO_LISTINGS = [
-  { id: 'LIST-01', name: 'Organic Tomatoes',  stockKg: 240, status: 'Active',    category: 'Vegetables', pricePerKg: 15, updatedAt: new Date().toISOString() },
-  { id: 'LIST-02', name: 'Ripe Strawberries', stockKg: 75,  status: 'Low Stock', category: 'Fruits',     pricePerKg: 20, updatedAt: new Date().toISOString() },
-  { id: 'LIST-03', name: 'Fresh Mint',        stockKg: 160, status: 'Active',    category: 'Herbs',      pricePerKg: 5,  updatedAt: new Date().toISOString() },
+  { id: 'LIST-01', name: 'Atlas Apples',       productId: 'midelt-apples',        farmId: 'farm-midelt-apples', stockKg: 320, status: 'Active',    category: 'Fruits',  pricePerKg: 11, updatedAt: new Date().toISOString() },
+  { id: 'LIST-02', name: 'Golden Apples',       productId: 'midelt-golden-apples', farmId: 'farm-midelt-apples', stockKg: 180, status: 'Active',    category: 'Fruits',  pricePerKg: 13, updatedAt: new Date().toISOString() },
+  { id: 'LIST-03', name: 'Atlas Pears',         productId: 'midelt-pears',         farmId: 'farm-midelt-apples', stockKg: 140, status: 'Active',    category: 'Fruits',  pricePerKg: 14, updatedAt: new Date().toISOString() },
+  { id: 'LIST-04', name: 'Mountain Walnuts',    productId: 'midelt-walnuts',       farmId: 'farm-midelt-apples', stockKg: 90,  status: 'Low Stock', category: 'Nuts',    pricePerKg: 45, updatedAt: new Date().toISOString() },
+  { id: 'LIST-05', name: 'Atlas Blossom Honey', productId: 'midelt-honey',         farmId: 'farm-midelt-apples', stockKg: 60,  status: 'Low Stock', category: 'Others',  pricePerKg: 80, updatedAt: new Date().toISOString() },
 ];
 
+// ── Requests (buyer requests that the farmer needs to respond to) ─────────────
 export const DEMO_REQUESTS = [
-  { id: 'REQ-001', product: 'Organic Tomatoes', buyer: 'buyer', qtyKg: 50,  pricePerKg: 14, status: 'Pending',    deliveryWindow: 'Tomorrow morning', note: 'Need clean packaging', createdAt: new Date(Date.now()-3600000).toISOString() },
-  { id: 'REQ-002', product: 'Fresh Mint',       buyer: 'buyer', qtyKg: 30,  pricePerKg: 5,  status: 'Negotiating',deliveryWindow: 'Wednesday afternoon', note: 'Restaurant supply', createdAt: new Date(Date.now()-7200000).toISOString() },
-  { id: 'REQ-003', product: 'Ripe Strawberries',buyer: 'buyer', qtyKg: 20,  pricePerKg: 18, status: 'Accepted',   deliveryWindow: 'Today 18:00',       note: '',                  createdAt: new Date(Date.now()-86400000).toISOString() },
+  {
+    id: 'REQ-001', product: 'Atlas Apples',   productId: 'midelt-apples',
+    buyer: 'buyer', farmId: 'farm-midelt-apples',
+    qtyKg: 50, pricePerKg: 10,
+    status: 'Pending',
+    deliveryWindow: 'Tomorrow morning',
+    note: 'Need clean, sorted packaging — restaurant delivery.',
+    createdAt: new Date(Date.now() - 3600000).toISOString(),
+  },
+  {
+    id: 'REQ-002', product: 'Mountain Walnuts', productId: 'midelt-walnuts',
+    buyer: 'buyer', farmId: 'farm-midelt-apples',
+    qtyKg: 20, pricePerKg: 42,
+    status: 'Negotiating',
+    deliveryWindow: 'Wednesday afternoon',
+    note: 'Bulk supply for patisserie — discuss weekly contract.',
+    createdAt: new Date(Date.now() - 7200000).toISOString(),
+  },
+  {
+    id: 'REQ-003', product: 'Atlas Blossom Honey', productId: 'midelt-honey',
+    buyer: 'buyer', farmId: 'farm-midelt-apples',
+    qtyKg: 15, pricePerKg: 78,
+    status: 'Accepted',
+    deliveryWindow: 'Today 18:00',
+    note: '',
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
+  },
 ];
 
+// ── Seed helpers ──────────────────────────────────────────────────────────────
 export const seedAll = () => {
   localStorage.setItem('soukfalah-orders',   JSON.stringify(DEMO_ORDERS));
   localStorage.setItem('soukfalah-listings', JSON.stringify(DEMO_LISTINGS));
@@ -79,7 +105,16 @@ export const seedAll = () => {
 };
 
 export const clearAll = () => {
-  ['soukfalah-orders','soukfalah-listings','soukfalah-requests','soukfalah-cart','soukfalah-favorites'].forEach(k=>localStorage.removeItem(k));
-  console.log('[SoukFellah] 🗑️ All data cleared.');
-  return 'Cleared! Refresh the page now.';
+  ['soukfalah-orders','soukfalah-listings','soukfalah-requests','soukfalah-cart','soukfalah-favorites'].forEach(k => localStorage.removeItem(k));
+  console.log('[SoukFellah] 🗑️ All data cleared. Refresh.');
+  return 'Cleared!';
 };
+
+// Legacy export (used by older components)
+export const DEMO_PRODUCTS = [
+  { id: 'midelt-apples',        name: 'Atlas Apples',         price: 11, unit: 'kg',  accent: '#c8b45a', farmer: 'Youssef Atlas' },
+  { id: 'midelt-golden-apples', name: 'Golden Apples',        price: 13, unit: 'kg',  accent: '#dfc55c', farmer: 'Youssef Atlas' },
+  { id: 'midelt-pears',         name: 'Atlas Pears',          price: 14, unit: 'kg',  accent: '#a8c87e', farmer: 'Youssef Atlas' },
+  { id: 'midelt-walnuts',       name: 'Mountain Walnuts',     price: 45, unit: 'kg',  accent: '#a87c50', farmer: 'Youssef Atlas' },
+  { id: 'midelt-honey',         name: 'Atlas Blossom Honey',  price: 80, unit: 'jar', accent: '#d4a843', farmer: 'Youssef Atlas' },
+];

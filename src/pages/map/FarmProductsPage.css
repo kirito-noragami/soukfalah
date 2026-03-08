@@ -241,3 +241,283 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Additions for wired farm page ─────────────────────────────────────────── */
+
+.farm-hero__desc {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #4a5e4a;
+  max-width: 480px;
+  line-height: 1.6;
+}
+
+.farm-hero__certs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.farm-cert {
+  background: #e8f2e0;
+  color: #3a5e2e;
+  border: 1px solid #b8d4a4;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.farm-hero {
+  align-items: flex-start;
+}
+
+.farm-hero__aside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.farm-farmer-card {
+  display: flex;
+  gap: 12px;
+  background: rgba(255,255,255,0.85);
+  border: 1px solid #e0d4c0;
+  border-radius: 16px;
+  padding: 14px 16px;
+  min-width: 220px;
+  box-shadow: 0 6px 14px rgba(32,40,32,0.08);
+}
+
+.farm-farmer-card__avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 16px;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.farm-farmer-card__name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #223223;
+}
+
+.farm-farmer-card__role {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: #708070;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.farm-farmer-card__bio {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #4a5e4a;
+  line-height: 1.5;
+  max-width: 220px;
+}
+
+.farm-farmer-card__reviews {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #c8922a;
+}
+
+/* ── Product card enhancements ─────────────────────────────────────────────── */
+
+.farm-products__media {
+  background-image:
+    linear-gradient(120deg, rgba(255,255,255,0.6), rgba(255,255,255,0.1)),
+    linear-gradient(120deg, var(--card-accent, var(--farm-accent)), rgba(255,255,255,0.4)),
+    var(--farm-fields-image);
+  position: relative;
+}
+
+.farm-product-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(47,75,49,0.92);
+  color: #f7f3ea;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.farm-product-badge--low {
+  background: rgba(180,80,40,0.9);
+  left: auto;
+  right: 10px;
+}
+
+.farm-product-cat {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: #708070;
+  background: #f0ece4;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.farm-product-desc {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #5a6e5a;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.farm-product-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.farm-product-price {
+  font-size: 17px;
+  font-weight: 700;
+  color: #2f4b31;
+}
+
+.farm-product-stock {
+  font-size: 11px;
+  color: #708070;
+}
+
+.farm-product-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* Quantity stepper */
+.farm-qty {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #f3ede3;
+  border-radius: 10px;
+  padding: 4px 6px;
+  border: 1px solid #e0d4c0;
+}
+
+.farm-qty__btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: none;
+  background: #fff;
+  color: #2f4b31;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  transition: background 0.15s;
+}
+
+.farm-qty__btn:hover:not(:disabled) { background: #e8f2e0; }
+.farm-qty__btn:disabled { opacity: 0.35; cursor: default; }
+
+.farm-qty__val {
+  min-width: 24px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2f4b31;
+}
+
+/* Add to cart button */
+.farm-add-btn {
+  flex: 1;
+  border-radius: 12px;
+  padding: 10px 14px;
+  border: none;
+  background: #2f4b31;
+  color: #f7f3ea;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.2s, transform 0.1s;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+}
+
+.farm-add-btn:hover   { background: #3d6340; }
+.farm-add-btn:active  { transform: scale(0.97); }
+.farm-add-btn--added  { background: #5a8f5e; }
+
+/* View cart / go to cart buttons */
+.farm-cart-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  padding: 8px 14px;
+  background: #f3ede3;
+  border: 1px solid #e0d4c0;
+  color: #2f4b31;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.farm-cart-btn:hover { background: #e8e0d4; }
+
+.farm-cart-btn--large {
+  background: #2f4b31;
+  color: #f7f3ea;
+  font-size: 14px;
+  padding: 12px 20px;
+  border-color: transparent;
+}
+
+.farm-cart-btn--large:hover { background: #3d6340; }
+
+/* Checkout strip at bottom */
+.farm-checkout-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  background: rgba(47,75,49,0.06);
+  border-radius: 14px;
+  border: 1px solid rgba(47,75,49,0.12);
+  flex-wrap: wrap;
+}
+
+.farm-checkout-strip p {
+  margin: 0;
+  font-size: 14px;
+  color: #3a4e3a;
+  font-weight: 500;
+}
+
+@media (max-width: 720px) {
+  .farm-hero { flex-direction: column; }
+  .farm-hero__aside { align-items: flex-start; width: 100%; }
+  .farm-farmer-card { width: 100%; box-sizing: border-box; }
+  .farm-checkout-strip { flex-direction: column; align-items: flex-start; }
+}

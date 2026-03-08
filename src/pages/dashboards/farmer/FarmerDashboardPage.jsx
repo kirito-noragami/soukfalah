@@ -4,6 +4,8 @@ import heroImage from '../../../assets/images/home-hero.png';
 import { products } from '../../../data/products';
 import { useAuth } from '../../../app/providers/AuthProvider';
 import { DEMO_LISTINGS, DEMO_REQUESTS } from '../../../data/seedData';
+import { findFarmByFarmer } from '../../../data/farms';
+import { navigateTo } from '../../../app/navigation';
 import '../dashboard-ui.css';
 import './FarmerDashboardPage.css';
 
@@ -34,6 +36,7 @@ const mkAct = (text, kind='info') => ({ id:`fact-${_actId+=1}`, text, kind, crea
 const FarmerDashboardPage = () => {
   const { fullName, username } = useAuth();
   const displayName = fullName || username || 'Farmer';
+  const myFarm = findFarmByFarmer(username); // farm this farmer owns
 
   const pageStyle = { '--farmer-hero-image':`url(${heroImage})`, '--farmer-fields-image':`url(${fieldsImage})` };
 
@@ -164,6 +167,11 @@ const FarmerDashboardPage = () => {
         </div>
         <div className="farmer-hero__actions">
           <span className="farmer-chip">Farmer</span>
+          {myFarm && (
+            <button type="button" className="dash-btn dash-btn--soft" onClick={() => navigateTo(`/farm/${myFarm.id}`)}>
+              👁 View My Farm Page
+            </button>
+          )}
           <button type="button" className="farmer-button" onClick={() => setShowAddListing(v => !v)}>
             {showAddListing ? 'Close Form' : 'Add Listing'}
           </button>
