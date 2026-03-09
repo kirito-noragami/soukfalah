@@ -1,8 +1,19 @@
+/**
+ * CheckoutPage — saves the order to Supabase.
+ *
+ * Flow:
+ *  1. Validate shipping form
+ *  2. Insert into `orders` (with shipping_address as JSONB)
+ *  3. Insert into `order_items` (one row per cart item)
+ *  4. Clear cart via CartProvider.clearCart()
+ *  5. Navigate to /order-success
+ */
 import { useState } from 'react';
-import fieldsImage from '../../assets/images/home-fields.png';
+import fieldsImage   from '../../assets/images/home-fields.png';
 import { navigateTo } from '../../app/navigation';
-import { useCart } from '../../app/providers/CartProvider';
-import { useAuth } from '../../app/providers/AuthProvider';
+import { useCart }    from '../../app/providers/CartProvider';
+import { useAuth }    from '../../app/providers/AuthProvider';
+import { supabase }   from '../../services/supabase';
 import OrderSummaryCard from './components/OrderSummaryCard';
 import './CheckoutPage.css';
 
@@ -21,10 +32,12 @@ const inputStyle = {
 };
 
 const CheckoutPage = () => {
-  const { items, total, clearCart } = useCart();  // SAFE
-  const { fullName }                = useAuth();  // SAFE
+  const { items, total, clearCart } = useCart();
+  const { fullName, userId }        = useAuth();
   const [loading, setLoading]       = useState(false);
   const [errors,  setErrors]        = useState({});
+  const [serverError, setServerError] = useState('');
+
   const [form, setForm] = useState({
     fullName: fullName ?? '',
     email:    '',
@@ -36,41 +49,94 @@ const CheckoutPage = () => {
   const set = (k) => (e) => {
     setForm(prev => ({ ...prev, [k]: e.target.value }));
     setErrors(prev => ({ ...prev, [k]: '' }));
+    setServerError('');
   };
 
   const validate = () => {
     const e = {};
-    if (!form.fullName.trim()) e.fullName = 'Required';
+    if (!form.fullName.trim())                             e.fullName = 'Required';
     if (!form.email.trim() || !/\S+@\S+\.\S+/.test(form.email)) e.email = 'Valid email required';
-    if (!form.address.trim()) e.address = 'Required';
-    if (!form.phone.trim()) e.phone = 'Required';
+    if (!form.address.trim())                              e.address  = 'Required';
+    if (!form.phone.trim())                                e.phone    = 'Required';
     return e;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = validate();
     if (Object.keys(errs).length) { setErrors(errs); return; }
+    if (!userId) { setServerError('You must be logged in to place an order.'); return; }
 
     setLoading(true);
-    const order = {
-      id:       `SO-${Date.now()}`,
-      items:    [...items],
-      total,
-      shipping: { fullName: form.fullName, email: form.email, address: form.address, phone: form.phone },
-      payment:  form.payment,
-      status:   'Preparing',
-      createdAt: new Date().toISOString(),
-    };
-    try {
-      const prev = JSON.parse(localStorage.getItem('soukfalah-orders') || '[]');
-      localStorage.setItem('soukfalah-orders', JSON.stringify([order, ...prev]));
-    } catch {}
+    setServerError('');
 
-    clearCart();
-    setTimeout(() => navigateTo('/order-success'), 300);
+    try {
+      const totalDh = items.reduce((s, i) => s + (i.price_dh ?? i.price ?? 0) * i.quantity, 0);
+
+      /* 1 — Create order */
+      const { data: order, error: orderErr } = await supabase
+        .from('orders')
+        .insert({
+          buyer_id:        userId,
+          total_dh:        totalDh,
+          payment_method:  form.payment,
+          status:          'preparing',
+          eta:             'Tomorrow',
+          shipping_address: {
+            fullName: form.fullName,
+            email:    form.email,
+            address:  form.address,
+            phone:    form.phone,
+          },
+        })
+        .select()
+        .single();
+
+      if (orderErr) throw orderErr;
+
+      /* 2 — Resolve farmer_id for any item missing it */
+      const productIds = items
+        .filter(item => !item.farmer_id)
+        .map(item => item.product_id ?? item.id);
+
+      let farmerMap = {};
+      if (productIds.length > 0) {
+        const { data: productRows } = await supabase
+          .from('products')
+          .select('id, farm_id, farms(owner_id)')
+          .in('id', productIds);
+        (productRows || []).forEach(p => {
+          if (p.farms?.owner_id) farmerMap[p.id] = p.farms.owner_id;
+        });
+      }
+
+      /* 3 — Create order_items */
+      const itemRows = items.map(item => {
+        const pid = item.product_id ?? item.id;
+        return {
+          order_id:       order.id,
+          product_id:     pid,
+          farmer_id:      item.farmer_id ?? farmerMap[pid] ?? null,
+          quantity:       item.quantity,
+          price_per_unit: item.price_dh ?? item.price ?? 0,
+        };
+      });
+
+      const { error: itemsErr } = await supabase.from('order_items').insert(itemRows);
+      if (itemsErr) throw itemsErr;
+
+      /* 4 — Clear cart */
+      await clearCart();
+
+      /* 5 — Navigate */
+      navigateTo('/order-success');
+    } catch (err) {
+      setServerError(err.message ?? 'Something went wrong. Please try again.');
+      setLoading(false);
+    }
   };
 
+  /* Empty cart */
   if (items.length === 0) {
     return (
       <div className="checkout-page" style={{ '--checkout-fields-image': `url(${fieldsImage})` }}>
@@ -123,6 +189,12 @@ const CheckoutPage = () => {
               </select>
             </Field>
 
+            {serverError && (
+              <p style={{ color: '#c0392b', fontSize: '0.83rem', background: 'rgba(192,57,43,0.07)', padding: '0.5rem 0.8rem', borderRadius: 8, marginBottom: '0.5rem' }}>
+                {serverError}
+              </p>
+            )}
+
             <button
               type="submit"
               disabled={loading}
@@ -135,7 +207,6 @@ const CheckoutPage = () => {
             >
               {loading ? 'Placing Order…' : `Place Order · ${total.toFixed(2)} DH`}
             </button>
-
           </form>
         </div>
 

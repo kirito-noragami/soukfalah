@@ -8,22 +8,26 @@ import AuthSubmitButton from './components/AuthSubmitButton';
 import './LoginPage.css';
 
 const LoginPage = () => {
-  const auth = useAuth();                      // SAFE – never null
-  const [error, setError] = useState('');
+  const { login } = useAuth();
+  const [error,   setError]   = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     const fd       = new FormData(e.currentTarget);
-    const username = String(fd.get('username') || '').trim();
+    const email    = String(fd.get('username') || '').trim(); // field is named "username" in the form
     const password = String(fd.get('password') || '').trim();
 
-    if (!username || !password) {
+    if (!email || !password) {
       setError('Please fill in both fields.');
       return;
     }
 
-    const result = auth.login(username, password);
+    setLoading(true);
+    const result = await login(email, password);
+    setLoading(false);
+
     if (!result.ok) {
       setError(result.error);
       return;
@@ -44,7 +48,6 @@ const LoginPage = () => {
         }
       >
         <form className="auth-form" onSubmit={handleSubmit} noValidate>
-          {/* Username */}
           <label className="auth-field">
             <span className="auth-field__icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -53,17 +56,15 @@ const LoginPage = () => {
               </svg>
             </span>
             <input
-              type="text"
+              type="email"
               name="username"
-              placeholder="Username"
-              autoComplete="username"
+              placeholder="Email address"
+              autoComplete="email"
             />
           </label>
 
-          {/* Password */}
           <PasswordField />
 
-          {/* Error */}
           {error && (
             <p style={{
               color: '#c0392b', fontSize: '0.83rem', margin: 0,
@@ -74,10 +75,10 @@ const LoginPage = () => {
             </p>
           )}
 
-          <AuthSubmitButton label="Log In" />
+          <AuthSubmitButton label={loading ? 'Signing in…' : 'Log In'} disabled={loading} />
 
           <p style={{ fontSize: '0.75rem', opacity: 0.5, textAlign: 'center', margin: 0 }}>
-            Demo: admin/admin · buyer/buyer · farmer/farmer
+            Use your Supabase email &amp; password
           </p>
         </form>
       </AuthCard>

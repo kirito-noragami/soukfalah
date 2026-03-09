@@ -1,134 +1,135 @@
 /**
- * Auth — module-level singleton store.
- * useAuth() works from ANY component with zero Provider required.
+ * AuthProvider — 100% Supabase Auth.
+ * After login, syncs role/fullName to localStorage so App.jsx + session.js
+ * continue working without changes (getStoredRole, getStoredUser).
  */
-import { useCallback, useSyncExternalStore } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { supabase } from '../../services/supabase';
 
-// ─── Keys ────────────────────────────────────────────────────────────────────
-const USERS_KEY   = 'soukfalah-users';
-const SESSION_KEY = 'soukfalah-session';
+const AuthContext = createContext(null);
 
-// ─── Demo accounts ───────────────────────────────────────────────────────────
-const DEMO = [
-  { username: 'admin',  password: 'admin',  role: 'admin',  fullName: 'Admin User'  },
-  { username: 'buyer',  password: 'buyer',  role: 'buyer',  fullName: 'Demo Buyer'  },
-  { username: 'farmer', password: 'farmer', role: 'farmer', fullName: 'Demo Farmer' },
-];
-
-// ─── localStorage helpers ─────────────────────────────────────────────────────
-const readUsers = () => {
+// Sync to localStorage so existing session.js helpers still work everywhere
+const syncSession = (profile, user) => {
   try {
-    const stored = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-    const merged = [...DEMO];
-    for (const u of stored) {
-      if (!merged.find(d => d.username.toLowerCase() === u.username.toLowerCase()))
-        merged.push(u);
-    }
-    return merged;
-  } catch { return [...DEMO]; }
-};
-
-const writeUser = (user) => {
-  try {
-    const stored = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-    localStorage.setItem(USERS_KEY, JSON.stringify([...stored, user]));
-  } catch {}
-};
-
-const readSession = () => {
-  try { return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); }
-  catch { return null; }
-};
-
-const writeSession = (sess) => {
-  try {
-    if (sess) {
-      localStorage.setItem(SESSION_KEY, JSON.stringify(sess));
-      localStorage.setItem('soukfalah-role', sess.role);
-      localStorage.setItem('soukfalah-user', sess.fullName);
+    if (profile && user) {
+      localStorage.setItem('soukfalah-role', profile.role || 'buyer');
+      localStorage.setItem('soukfalah-user', profile.full_name || user.email || '');
     } else {
-      localStorage.removeItem(SESSION_KEY);
       localStorage.removeItem('soukfalah-role');
       localStorage.removeItem('soukfalah-user');
     }
   } catch {}
 };
 
-// ─── Module store (lives outside React) ──────────────────────────────────────
-let _session  = readSession();
-const _subs   = new Set();
-const _notify = () => _subs.forEach(fn => fn());
+const AuthProvider = ({ children }) => {
+  const [session, setSession] = useState(undefined); // undefined = still loading
+  const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
 
-// useSyncExternalStore API
-const _subscribe    = (cb) => { _subs.add(cb); return () => _subs.delete(cb); };
-const _getSnap      = ()   => _session;
-const _getServerSnap = ()  => null;
+  const loadProfile = useCallback(async (user) => {
+    if (!user) { setProfile(null); syncSession(null, null); return null; }
+    setProfileLoading(true);
 
-// ─── Auth actions (callable anywhere) ────────────────────────────────────────
-export const authLogin = (username, password) => {
-  if (!username || !password)
-    return { ok: false, error: 'Please fill in both fields.' };
+    let { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
 
-  const user = readUsers().find(
-    u => u.username.toLowerCase() === username.toLowerCase().trim()
-      && u.password === password.trim()
-  );
-  if (!user) return { ok: false, error: 'Wrong username or password.' };
+    // Profile missing (email just confirmed) — create it from auth metadata
+    if (!data) {
+      const meta = user.user_metadata ?? {};
+      await supabase.from('profiles').upsert({
+        id:        user.id,
+        full_name: meta.full_name || user.email,
+        email:     user.email,
+        role:      meta.role || 'buyer',
+        status:    'active',
+        verified:  false,
+      });
+      const refetch = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      data = refetch.data;
+    }
 
-  _session = { username: user.username, fullName: user.fullName, role: user.role };
-  writeSession(_session);
-  _notify();
-  return { ok: true };
-};
+    const p = data ?? null;
+    setProfile(p);
+    syncSession(p, user);
+    setProfileLoading(false);
+    return p;
+  }, []);
 
-export const authRegister = (fullName, username, email, password, role) => {
-  if (!fullName || !username || !email || !password || !role)
-    return { ok: false, error: 'Please fill in every field.' };
-  if (password.trim().length < 4)
-    return { ok: false, error: 'Password must be at least 4 characters.' };
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session ?? null);
+      loadProfile(data.session?.user ?? null);
+    });
 
-  const users = readUsers();
-  if (users.find(u => u.username.toLowerCase() === username.toLowerCase().trim()))
-    return { ok: false, error: 'Username already taken. Please choose another.' };
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, sess) => {
+      if (event === 'INITIAL_SESSION') return; // already handled by getSession above
+      setSession(sess ?? null);
+      loadProfile(sess?.user ?? null);
+    });
 
-  const newUser = {
-    fullName: fullName.trim(),
-    username: username.trim(),
-    email:    email.trim(),
-    password: password.trim(),
-    role,
-  };
-  writeUser(newUser);
-  _session = { username: newUser.username, fullName: newUser.fullName, role };
-  writeSession(_session);
-  _notify();
-  return { ok: true };
-};
+    return () => subscription.unsubscribe();
+  }, [loadProfile]);
 
-export const authLogout = () => {
-  _session = null;
-  writeSession(null);
-  _notify();
-};
+  const login = useCallback(async (email, password) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  }, []);
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
-export const useAuth = () => {
-  const session = useSyncExternalStore(_subscribe, _getSnap, _getServerSnap);
-  const login    = useCallback((u, p)              => authLogin(u, p),                []);
-  const register = useCallback((fn, u, e, p, role) => authRegister(fn, u, e, p, role), []);
-  const logout   = useCallback(()                  => authLogout(),                   []);
-  return {
+  const register = useCallback(async (fullName, _username, email, password, role) => {
+    const chosenRole = role || 'buyer';
+    const { data, error } = await supabase.auth.signUp({
+      email, password,
+      options: { data: { full_name: fullName, role: chosenRole } },
+    });
+    if (error) return { ok: false, error: error.message };
+
+    // Try immediate profile insert (succeeds if email confirmation disabled)
+    // If RLS blocks it (unconfirmed), SIGNED_IN event will create it from metadata
+    await supabase.from('profiles').upsert({
+      id: data.user.id, full_name: fullName, email,
+      role: chosenRole, status: 'active', verified: false,
+    });
+
+    return { ok: true };
+  }, []);
+
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
+    syncSession(null, null);
+  }, []);
+
+  if (session === undefined || profileLoading) {
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        minHeight: '100vh', background: 'var(--color-surface, #f8f9f4)',
+        fontSize: '1rem', opacity: 0.5,
+      }}>
+        Loading…
+      </div>
+    );
+  }
+
+  const value = {
     session,
-    isLoggedIn : !!session,
-    role       : session?.role     ?? null,
-    fullName   : session?.fullName ?? null,
-    username   : session?.username ?? null,
+    profile,
+    isLoggedIn: !!session,
+    role:      profile?.role      ?? null,
+    fullName:  profile?.full_name ?? session?.user?.email ?? null,
+    username:  session?.user?.email ?? null,
+    userId:    session?.user?.id   ?? null,
     login,
     register,
     logout,
   };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// ─── Provider — passthrough, kept for compatibility with main.jsx ─────────────
-const AuthProvider = ({ children }) => children;
+export const useAuth = () => {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be inside AuthProvider');
+  return ctx;
+};
+
 export default AuthProvider;

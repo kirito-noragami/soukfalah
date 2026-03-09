@@ -10,8 +10,9 @@ import AuthSubmitButton from './components/AuthSubmitButton';
 import './RegisterPage.css';
 
 const RegisterPage = () => {
-  const auth = useAuth();                      // SAFE – never null
-  const [error, setError] = useState('');
+  const { register } = useAuth();
+  const [error,   setError]   = useState('');
+  const [loading, setLoading] = useState(false);
 
   const suggestedRole =
     typeof window !== 'undefined'
@@ -21,7 +22,7 @@ const RegisterPage = () => {
     ? suggestedRole
     : 'buyer';
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     const fd       = new FormData(e.currentTarget);
@@ -31,16 +32,19 @@ const RegisterPage = () => {
     const password = String(fd.get('password') || '').trim();
     const role     = String(fd.get('role')     || '').trim().toLowerCase();
 
-    if (!fullName || !username || !email || !password || !role) {
+    if (!fullName || !email || !password || !role) {
       setError('Please fill in every field.');
       return;
     }
-    if (password.length < 4) {
-      setError('Password must be at least 4 characters.');
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters (Supabase requirement).');
       return;
     }
 
-    const result = auth.register(fullName, username, email, password, role);
+    setLoading(true);
+    const result = await register(fullName, username, email, password, role);
+    setLoading(false);
+
     if (!result.ok) {
       setError(result.error);
       return;
@@ -68,38 +72,23 @@ const RegisterPage = () => {
         }
       >
         <form className="auth-form" onSubmit={handleSubmit} noValidate>
-          {/* Full name */}
           <label className="auth-field">
             <span className="auth-field__icon" aria-hidden="true">{personIcon}</span>
-            <input
-              type="text"
-              name="fullName"
-              placeholder="Full name"
-              autoComplete="name"
-            />
+            <input type="text" name="fullName" placeholder="Full name" autoComplete="name" />
           </label>
 
-          {/* Username */}
+          {/* username kept in form but not used for auth — email is the identifier */}
           <label className="auth-field">
             <span className="auth-field__icon" aria-hidden="true">{personIcon}</span>
-            <input
-              type="text"
-              name="username"
-              placeholder="Username (used to log in)"
-              autoComplete="username"
-            />
+            <input type="text" name="username" placeholder="Display name (optional)" autoComplete="username" />
           </label>
 
-          {/* Email */}
           <EmailField />
 
-          {/* Password */}
-          <PasswordField placeholder="Password (min 4 chars)" autoComplete="new-password" />
+          <PasswordField placeholder="Password (min 6 chars)" autoComplete="new-password" />
 
-          {/* Role picker */}
           <RoleSelector defaultRole={defaultRole} />
 
-          {/* Error */}
           {error && (
             <p style={{
               color: '#c0392b', fontSize: '0.83rem', margin: 0,
@@ -110,7 +99,7 @@ const RegisterPage = () => {
             </p>
           )}
 
-          <AuthSubmitButton label="Create Account" />
+          <AuthSubmitButton label={loading ? 'Creating account…' : 'Create Account'} disabled={loading} />
         </form>
       </AuthCard>
     </div>
