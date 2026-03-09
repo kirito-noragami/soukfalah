@@ -24,33 +24,17 @@ const syncSession = (profile, user) => {
 const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(undefined); // undefined = still loading
   const [profile, setProfile] = useState(null);
-  const [profileLoading, setProfileLoading] = useState(false);
 
   const loadProfile = useCallback(async (user) => {
     if (!user) { setProfile(null); syncSession(null, null); return null; }
-    setProfileLoading(true);
-
-    let { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-
-    // Profile missing (email just confirmed) — create it from auth metadata
-    if (!data) {
-      const meta = user.user_metadata ?? {};
-      await supabase.from('profiles').upsert({
-        id:        user.id,
-        full_name: meta.full_name || user.email,
-        email:     user.email,
-        role:      meta.role || 'buyer',
-        status:    'active',
-        verified:  false,
-      });
-      const refetch = await supabase.from('profiles').select('*').eq('id', user.id).single();
-      data = refetch.data;
-    }
-
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
     const p = data ?? null;
     setProfile(p);
     syncSession(p, user);
-    setProfileLoading(false);
     return p;
   }, []);
 
@@ -60,8 +44,7 @@ const AuthProvider = ({ children }) => {
       loadProfile(data.session?.user ?? null);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, sess) => {
-      if (event === 'INITIAL_SESSION') return; // already handled by getSession above
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, sess) => {
       setSession(sess ?? null);
       loadProfile(sess?.user ?? null);
     });
@@ -76,19 +59,18 @@ const AuthProvider = ({ children }) => {
   }, []);
 
   const register = useCallback(async (fullName, _username, email, password, role) => {
-    const chosenRole = role || 'buyer';
-    const { data, error } = await supabase.auth.signUp({
-      email, password,
-      options: { data: { full_name: fullName, role: chosenRole } },
-    });
+    const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) return { ok: false, error: error.message };
 
-    // Try immediate profile insert (succeeds if email confirmation disabled)
-    // If RLS blocks it (unconfirmed), SIGNED_IN event will create it from metadata
-    await supabase.from('profiles').upsert({
-      id: data.user.id, full_name: fullName, email,
-      role: chosenRole, status: 'active', verified: false,
+    const { error: profileError } = await supabase.from('profiles').upsert({
+      id:        data.user.id,
+      full_name: fullName,
+      email,
+      role:      role || 'buyer',
+      status:    'active',
+      verified:  false,
     });
+    if (profileError) return { ok: false, error: profileError.message };
 
     return { ok: true };
   }, []);
@@ -98,7 +80,7 @@ const AuthProvider = ({ children }) => {
     syncSession(null, null);
   }, []);
 
-  if (session === undefined || profileLoading) {
+  if (session === undefined) {
     return (
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',

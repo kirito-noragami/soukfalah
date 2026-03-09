@@ -1,575 +1,650 @@
-import { useDeferredValue, useState } from 'react';
-import { useAuth } from '../../../app/providers/AuthProvider';
-import fieldsImage from '../../../assets/images/home-fields.png';
-import heroImage from '../../../assets/images/home-hero.png';
+/**
+ * AdminDashboardPage — 100% Supabase.
+ * Real admin panel: manage users, products, orders, farms from the database.
+ * Only accessible to users with role = 'admin' in profiles table.
+ */
+import { useCallback, useEffect, useState } from 'react';
+import { useAuth }    from '../../../app/providers/AuthProvider';
+import { supabase }   from '../../../services/supabase';
 import { navigateTo } from '../../../app/navigation';
-import {
-  adminChartDataByRange,
-  adminLanguageCycle,
-  adminNavItems,
-  adminRoleOptions,
-  adminStatusOptions,
-  initialAdminAudit,
-  initialAdminUsers,
-  initialAdminValidations
-} from './adminDashboardData';
+import heroImage      from '../../../assets/images/home-hero.png';
+import fieldsImage    from '../../../assets/images/home-fields.png';
 import '../dashboard-ui.css';
 import './AdminDashboardPage.css';
 
-let auditCounter = 10;
-let userCounter = 905;
+/* ── Formatters ──────────────────────────────────────────────────────────── */
+const fmtDh    = v => `${Number(v ?? 0).toLocaleString('fr-MA')} DH`;
+const fmtDate  = iso => iso ? new Intl.DateTimeFormat('en-GB', { month: 'short', day: '2-digit', year: 'numeric' }).format(new Date(iso)) : '—';
+const fmtStamp = iso => iso ? new Intl.DateTimeFormat('en-GB', { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(iso)) : '—';
 
-const formatDh = value => `${new Intl.NumberFormat('fr-MA').format(Math.round(value))} DH`;
-const formatStamp = iso => new Intl.DateTimeFormat('en-GB', {
-  month: 'short',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit'
-}).format(new Date(iso));
-const nextUserId = () => `U-${String(++userCounter).padStart(3, '0')}`;
-const statusBadge = status => {
-  if (status === 'Active' || status === 'Approved') return 'dash-status dash-status--success';
-  if (status === 'Suspended' || status === 'Rejected') return 'dash-status dash-status--danger';
-  if (status === 'Pending' || status === 'Changes Requested') return 'dash-status dash-status--warning';
+const roleBadge = r => {
+  if (r === 'admin')  return 'dash-status dash-status--danger';
+  if (r === 'farmer') return 'dash-status dash-status--success';
+  return 'dash-status dash-status--info';
+};
+const statusBadge = s => {
+  if (s === 'active' || s === 'delivered') return 'dash-status dash-status--success';
+  if (s === 'suspended' || s === 'cancelled') return 'dash-status dash-status--danger';
+  if (s === 'preparing' || s === 'in_transit') return 'dash-status dash-status--warning';
   return 'dash-status dash-status--info';
 };
 
+/* ── Nav ─────────────────────────────────────────────────────────────────── */
+const NAV = [
+  { key: 'dashboard', label: '📊 Dashboard'  },
+  { key: 'users',     label: '👥 Users'       },
+  { key: 'products',  label: '🌿 Products'    },
+  { key: 'orders',    label: '📦 Orders'      },
+  { key: 'farms',     label: '🏡 Farms'       },
+];
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MAIN COMPONENT
+═══════════════════════════════════════════════════════════════════════════ */
 const AdminDashboardPage = () => {
-  const { fullName, username } = useAuth();
-  const displayName = fullName || username || 'Admin';
-  const initials = displayName.split(/\s+/).slice(0,2).map(w=>w[0]?.toUpperCase()||'').join('') || 'AD';
+  const { profile, userId, logout } = useAuth();
+  const displayName = profile?.full_name || profile?.email || 'Admin';
+  const initials    = displayName.split(/\s+/).slice(0,2).map(w => w[0]?.toUpperCase() || '').join('') || 'AD';
+
   const pageStyle = {
-    '--admin-hero-image': `url(${heroImage})`,
-    '--admin-fields-image': `url(${fieldsImage})`
+    '--admin-hero-image':   `url(${heroImage})`,
+    '--admin-fields-image': `url(${fieldsImage})`,
   };
 
-  const [activeSection, setActiveSection] = useState('dashboard');
-  const [language, setLanguage] = useState('EN');
-  const [users, setUsers] = useState(initialAdminUsers);
-  const [validations, setValidations] = useState(initialAdminValidations);
-  const [auditLog, setAuditLog] = useState(initialAdminAudit);
-  const [notice, setNotice] = useState(null);
-  const [userSearch, setUserSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState('all');
-  const [userStatusFilter, setUserStatusFilter] = useState('all');
-  const [showAllUsers, setShowAllUsers] = useState(false);
-  const [selectedUserEmail, setSelectedUserEmail] = useState(initialAdminUsers[0]?.email || null);
-  const [showUserEditor, setShowUserEditor] = useState(false);
-  const [userDraft, setUserDraft] = useState({
-    name: '',
-    email: '',
-    role: 'Buyer',
-    listings: '0',
-    status: 'Active'
-  });
-  const [selectedValidationId, setSelectedValidationId] = useState(initialAdminValidations[0]?.id || null);
-  const [showResolvedValidations, setShowResolvedValidations] = useState(true);
-  const [reviewComment, setReviewComment] = useState('');
-  const [reportRange, setReportRange] = useState('weekly');
-  const [settingsState, setSettingsState] = useState({
-    maintenanceMode: false,
-    autoApproveTrustedFarmers: false,
-    emailModerationAlerts: true,
-    maxDailyListings: 25,
-    platformFeePercent: 6
-  });
+  /* ── Section ─────────────────────────────────────────────────────────── */
+  const [section, setSection] = useState('dashboard');
 
-  const deferredUserSearch = useDeferredValue(userSearch);
+  /* ── Data ────────────────────────────────────────────────────────────── */
+  const [users,    setUsers]    = useState([]);
+  const [products, setProducts] = useState([]);
+  const [orders,   setOrders]   = useState([]);
+  const [farms,    setFarms]    = useState([]);
+  const [stats,    setStats]    = useState({ users: 0, products: 0, orders: 0, revenue: 0, farms: 0 });
+  const [loading,  setLoading]  = useState(true);
+  const [notice,   setNotice]   = useState(null);
 
-  const pushNotice = (message, type = 'success') => setNotice({
-    id: Date.now(),
-    message,
-    type
-  });
+  /* ── Filters ─────────────────────────────────────────────────────────── */
+  const [userSearch,    setUserSearch]    = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState('all');
+  const [productSearch, setProductSearch] = useState('');
+  const [orderSearch,   setOrderSearch]   = useState('');
 
-  const pushAudit = (text, type = 'info') => setAuditLog(current => [{
-    id: `admin-audit-${++auditCounter}`,
-    text,
-    type,
-    createdAt: new Date().toISOString()
-  }, ...current].slice(0, 12));
+  /* ── Selected rows ───────────────────────────────────────────────────── */
+  const [selectedUserId,    setSelectedUserId]    = useState(null);
+  const [selectedProductId, setSelectedProductId] = useState(null);
+  const [selectedOrderId,   setSelectedOrderId]   = useState(null);
+  const [selectedFarmId,    setSelectedFarmId]    = useState(null);
 
-  const filteredUsers = users.filter(user => {
-    if (roleFilter !== 'all' && user.role !== roleFilter) return false;
-    if (userStatusFilter !== 'all' && user.status !== userStatusFilter) return false;
-    if (!deferredUserSearch.trim()) return true;
-    const q = deferredUserSearch.trim().toLowerCase();
-    return `${user.name} ${user.email} ${user.role}`.toLowerCase().includes(q);
-  });
+  /* ── Edit modals ─────────────────────────────────────────────────────── */
+  const [editUser,    setEditUser]    = useState(null);
+  const [editProduct, setEditProduct] = useState(null);
 
-  const displayedUsers = showAllUsers ? filteredUsers : filteredUsers.slice(0, 6);
-  const selectedUser = users.find(user => user.email === selectedUserEmail) || displayedUsers[0] || users[0] || null;
-  const visibleValidations = validations.filter(item => showResolvedValidations || item.status === 'Pending');
-  const selectedValidation = validations.find(item => item.id === selectedValidationId) || visibleValidations[0] || validations[0] || null;
-  const chartSeries = adminChartDataByRange[reportRange];
-  const maxChartValue = Math.max(...chartSeries.map(item => item.value), 1);
+  /* ── Access guard ────────────────────────────────────────────────────── */
+  useEffect(() => {
+    if (profile && profile.role !== 'admin') navigateTo('/');
+  }, [profile]);
 
-  const totalListings = users.reduce((sum, user) => sum + user.listings, 0);
-  const pendingValidationCount = validations.filter(item => item.status === 'Pending').length;
-  const approvedValidationCount = validations.filter(item => item.status === 'Approved').length;
-  const estimatedRevenueDh = users.reduce((sum, user) => sum + user.listings * 210, 0);
-  const chartTotal = chartSeries.reduce((sum, item) => sum + item.value, 0);
+  /* ── Load all data ───────────────────────────────────────────────────── */
+  const loadAll = useCallback(async () => {
+    if (!userId) return;
+    setLoading(true);
+    try {
+      const [
+        { data: usersData },
+        { data: productsData },
+        { data: ordersData },
+        { data: farmsData },
+      ] = await Promise.all([
+        supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+        supabase.from('products').select('*, farms(name, owner_id)').order('created_at', { ascending: false }),
+        supabase.from('orders').select('*, profiles(full_name, email)').order('created_at', { ascending: false }),
+        supabase.from('farms').select('*, profiles(full_name, email)').order('created_at', { ascending: false }),
+      ]);
 
-  const openUserEditor = user => {
-    setSelectedUserEmail(user.email);
-    setUserDraft({
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      listings: String(user.listings),
-      status: user.status
-    });
-    setShowUserEditor(true);
-    setActiveSection('users');
+      const u = usersData    || [];
+      const p = productsData || [];
+      const o = ordersData   || [];
+      const f = farmsData    || [];
+
+      setUsers(u);
+      setProducts(p);
+      setOrders(o);
+      setFarms(f);
+      setStats({
+        users:    u.length,
+        products: p.length,
+        orders:   o.length,
+        farms:    f.length,
+        revenue:  o.filter(x => x.status !== 'cancelled').reduce((s, x) => s + Number(x.total_dh ?? 0), 0),
+      });
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  }, [userId]);
+
+  useEffect(() => { if (userId) loadAll(); }, [userId]);
+
+  const pushNotice = (msg, type = 'success') => setNotice({ id: Date.now(), msg, type });
+
+  /* ════════════════════════════════════════════════════════════════════════
+     USER ACTIONS
+  ═══════════════════════════════════════════════════════════════════════ */
+  const saveUser = async () => {
+    if (!editUser) return;
+    const { error } = await supabase.from('profiles')
+      .update({ full_name: editUser.full_name, role: editUser.role, status: editUser.status })
+      .eq('id', editUser.id);
+    if (error) { pushNotice(error.message, 'danger'); return; }
+    setUsers(prev => prev.map(u => u.id === editUser.id ? { ...u, ...editUser } : u));
+    setEditUser(null);
+    pushNotice('User updated.');
   };
 
-  const saveUser = () => {
-    const name = userDraft.name.trim();
-    const email = userDraft.email.trim().toLowerCase();
-    if (!name || !email.includes('@')) {
-      pushNotice('Please enter a valid name and email.', 'warning');
-      return;
+  const deleteUser = async (user) => {
+    if (!window.confirm(`Delete ${user.full_name || user.email}? This cannot be undone.`)) return;
+    const { error } = await supabase.from('profiles').delete().eq('id', user.id);
+    if (error) { pushNotice(error.message, 'danger'); return; }
+    setUsers(prev => prev.filter(u => u.id !== user.id));
+    if (selectedUserId === user.id) setSelectedUserId(null);
+    pushNotice(`${user.full_name || user.email} deleted.`, 'danger');
+  };
+
+  const toggleUserStatus = async (user) => {
+    const next = user.status === 'suspended' ? 'active' : 'suspended';
+    const { error } = await supabase.from('profiles').update({ status: next }).eq('id', user.id);
+    if (error) { pushNotice(error.message, 'danger'); return; }
+    setUsers(prev => prev.map(u => u.id === user.id ? { ...u, status: next } : u));
+    pushNotice(`${user.full_name || user.email} is now ${next}.`);
+  };
+
+  const makeAdmin = async (user) => {
+    if (!window.confirm(`Make ${user.full_name || user.email} an admin?`)) return;
+    const { error } = await supabase.from('profiles').update({ role: 'admin' }).eq('id', user.id);
+    if (error) { pushNotice(error.message, 'danger'); return; }
+    setUsers(prev => prev.map(u => u.id === user.id ? { ...u, role: 'admin' } : u));
+    pushNotice(`${user.full_name || user.email} is now admin.`);
+  };
+
+  /* ════════════════════════════════════════════════════════════════════════
+     PRODUCT ACTIONS
+  ═══════════════════════════════════════════════════════════════════════ */
+  const saveProduct = async () => {
+    if (!editProduct) return;
+    const { error } = await supabase.from('products')
+      .update({ name: editProduct.name, price_dh: editProduct.price_dh, status: editProduct.status, available_kg: editProduct.available_kg, category: editProduct.category })
+      .eq('id', editProduct.id);
+    if (error) { pushNotice(error.message, 'danger'); return; }
+    setProducts(prev => prev.map(p => p.id === editProduct.id ? { ...p, ...editProduct } : p));
+    setEditProduct(null);
+    pushNotice('Product updated.');
+  };
+
+  const deleteProduct = async (product) => {
+    if (!window.confirm(`Delete product "${product.name}"?`)) return;
+    const { error } = await supabase.from('products').delete().eq('id', product.id);
+    if (error) { pushNotice(error.message, 'danger'); return; }
+    setProducts(prev => prev.filter(p => p.id !== product.id));
+    if (selectedProductId === product.id) setSelectedProductId(null);
+    pushNotice(`"${product.name}" deleted.`, 'danger');
+  };
+
+  const toggleProductStatus = async (product) => {
+    const next = product.status === 'active' ? 'inactive' : 'active';
+    const { error } = await supabase.from('products').update({ status: next }).eq('id', product.id);
+    if (error) { pushNotice(error.message, 'danger'); return; }
+    setProducts(prev => prev.map(p => p.id === product.id ? { ...p, status: next } : p));
+    pushNotice(`"${product.name}" is now ${next}.`);
+  };
+
+  /* ════════════════════════════════════════════════════════════════════════
+     ORDER ACTIONS
+  ═══════════════════════════════════════════════════════════════════════ */
+  const updateOrderStatus = async (order, next) => {
+    const { error } = await supabase.from('orders').update({ status: next }).eq('id', order.id);
+    if (error) { pushNotice(error.message, 'danger'); return; }
+    setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: next } : o));
+    pushNotice(`Order updated to ${next}.`);
+  };
+
+  const deleteOrder = async (order) => {
+    if (!window.confirm(`Delete order ${order.id.slice(0,8)}?`)) return;
+    const { error } = await supabase.from('orders').delete().eq('id', order.id);
+    if (error) { pushNotice(error.message, 'danger'); return; }
+    setOrders(prev => prev.filter(o => o.id !== order.id));
+    if (selectedOrderId === order.id) setSelectedOrderId(null);
+    pushNotice('Order deleted.', 'danger');
+  };
+
+  /* ════════════════════════════════════════════════════════════════════════
+     FARM ACTIONS
+  ═══════════════════════════════════════════════════════════════════════ */
+  const deleteFarm = async (farm) => {
+    if (!window.confirm(`Delete farm "${farm.name}"? This will also remove its products.`)) return;
+    const { error } = await supabase.from('farms').delete().eq('id', farm.id);
+    if (error) { pushNotice(error.message, 'danger'); return; }
+    setFarms(prev => prev.filter(f => f.id !== farm.id));
+    if (selectedFarmId === farm.id) setSelectedFarmId(null);
+    pushNotice(`Farm "${farm.name}" deleted.`, 'danger');
+  };
+
+  /* ════════════════════════════════════════════════════════════════════════
+     FILTERED LISTS
+  ═══════════════════════════════════════════════════════════════════════ */
+  const filteredUsers = users.filter(u => {
+    if (userRoleFilter !== 'all' && u.role !== userRoleFilter) return false;
+    if (userSearch.trim()) {
+      const q = userSearch.toLowerCase();
+      return `${u.full_name} ${u.email} ${u.role}`.toLowerCase().includes(q);
     }
-    const listings = Math.max(0, Number.parseInt(userDraft.listings, 10) || 0);
-    const initials = name.split(/\s+/).slice(0, 2).map(part => part[0]?.toUpperCase() || '').join('') || 'NU';
-    const existing = users.find(user => user.email === email);
-    if (existing) {
-      setUsers(current => current.map(user => user.email === email ? {
-        ...user,
-        name,
-        role: userDraft.role,
-        listings,
-        status: userDraft.status,
-        initials
-      } : user));
-      pushAudit(`Updated user ${email}`, 'info');
-      pushNotice('User updated successfully.', 'success');
-    } else {
-      const newUser = {
-        id: nextUserId(),
-        name,
-        email,
-        role: userDraft.role,
-        listings,
-        initials,
-        status: userDraft.status,
-        verified: false,
-        joinedAt: new Date().toISOString()
-      };
-      setUsers(current => [newUser, ...current]);
-      setSelectedUserEmail(newUser.email);
-      pushAudit(`Created user ${email}`, 'success');
-      pushNotice('New user created.', 'success');
-    }
-    setShowUserEditor(false);
-  };
+    return true;
+  });
 
-  const deleteUser = user => {
-    setUsers(current => current.filter(item => item.email !== user.email));
-    if (selectedUserEmail === user.email) setSelectedUserEmail(null);
-    pushAudit(`Deleted user ${user.email}`, 'danger');
-    pushNotice(`${user.name} deleted.`, 'danger');
-  };
+  const filteredProducts = products.filter(p => {
+    if (!productSearch.trim()) return true;
+    return `${p.name} ${p.category} ${p.farms?.name}`.toLowerCase().includes(productSearch.toLowerCase());
+  });
 
-  const toggleUserStatus = user => {
-    const nextStatus = user.status === 'Suspended' ? 'Active' : 'Suspended';
-    setUsers(current => current.map(item => item.email === user.email ? {
-      ...item,
-      status: nextStatus
-    } : item));
-    pushAudit(`${nextStatus === 'Suspended' ? 'Suspended' : 'Reactivated'} ${user.email}`, nextStatus === 'Suspended' ? 'danger' : 'success');
-    pushNotice(`${user.name} is now ${nextStatus}.`, nextStatus === 'Suspended' ? 'danger' : 'success');
-  };
+  const filteredOrders = orders.filter(o => {
+    if (!orderSearch.trim()) return true;
+    return `${o.id} ${o.profiles?.full_name} ${o.profiles?.email} ${o.status}`.toLowerCase().includes(orderSearch.toLowerCase());
+  });
 
-  const reviewValidation = status => {
-    if (!selectedValidation) return;
-    setValidations(current => current.map(item => item.id === selectedValidation.id ? {
-      ...item,
-      status,
-      note: reviewComment.trim() || item.note
-    } : item));
-    pushAudit(`${status} ${selectedValidation.id}`, status === 'Approved' ? 'success' : status === 'Rejected' ? 'danger' : 'warning');
-    pushNotice(`${selectedValidation.name} marked as ${status}.`, status === 'Rejected' ? 'danger' : status === 'Approved' ? 'success' : 'warning');
-    setReviewComment('');
-  };
+  const selectedUser    = users.find(u => u.id === selectedUserId) ?? null;
+  const selectedProduct = products.find(p => p.id === selectedProductId) ?? null;
+  const selectedOrder   = orders.find(o => o.id === selectedOrderId) ?? null;
+  const selectedFarm    = farms.find(f => f.id === selectedFarmId) ?? null;
 
-  const cycleLanguage = () => {
-    const currentIndex = adminLanguageCycle.indexOf(language);
-    const next = adminLanguageCycle[(currentIndex + 1) % adminLanguageCycle.length];
-    setLanguage(next);
-    pushAudit(`Language changed to ${next}`, 'info');
-  };
+  /* ════════════════════════════════════════════════════════════════════════
+     RENDER
+  ═══════════════════════════════════════════════════════════════════════ */
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', opacity: 0.5 }}>
+      Loading admin data…
+    </div>
+  );
 
-  const toggleSetting = key => {
-    setSettingsState(current => ({
-      ...current,
-      [key]: !current[key]
-    }));
-    pushAudit(`Toggled setting ${key}`, 'info');
-  };
-
-  const logout = () => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem('soukfalah-role');
-      window.localStorage.removeItem('soukfalah-user');
-    }
-    navigateTo('/');
-  };
-
-  return <div className="admin-dashboard" style={pageStyle}>
+  return (
+    <div className="admin-dashboard" style={pageStyle}>
       <div className="admin-dashboard__layout">
+
+        {/* ── Sidebar ── */}
         <aside className="admin-sidebar">
           <div className="admin-sidebar__profile">
-            <div className="admin-sidebar__avatar" aria-hidden="true"><span>{initials}</span></div>
+            <div className="admin-sidebar__avatar"><span>{initials}</span></div>
             <div>
               <p className="admin-sidebar__name">{displayName}</p>
               <p className="admin-sidebar__role">Administrator</p>
             </div>
           </div>
-
-          <nav className="admin-sidebar__nav" aria-label="Admin navigation">
-            {adminNavItems.map(item => <button key={item.key} className={activeSection === item.key ? 'active' : undefined} type="button" onClick={() => setActiveSection(item.key)}>
-                <span className="admin-nav__icon" aria-hidden="true" />
+          <nav className="admin-sidebar__nav">
+            {NAV.map(item => (
+              <button key={item.key} type="button"
+                className={section === item.key ? 'active' : undefined}
+                onClick={() => setSection(item.key)}>
                 {item.label}
-              </button>)}
+              </button>
+            ))}
           </nav>
-
           <div className="admin-sidebar__footer">
-            <button type="button" onClick={() => setActiveSection('settings')}>
-              <span className="admin-nav__icon" aria-hidden="true" />
-              Settings
-            </button>
-            <button type="button" onClick={logout}>
-              <span className="admin-nav__icon" aria-hidden="true" />
-              Log Out
-            </button>
-            <div className="admin-sidebar__langs" role="group" aria-label="Language selector">
-              {adminLanguageCycle.map(code => <button key={code} className={language === code ? 'active' : undefined} type="button" onClick={() => setLanguage(code)}>
-                  {code}
-                </button>)}
-            </div>
+            <button type="button" onClick={() => { logout(); navigateTo('/'); }}>🚪 Log Out</button>
           </div>
         </aside>
 
+        {/* ── Main content ── */}
         <div className="admin-dashboard__content">
+
           <header className="admin-welcome">
             <div>
               <p className="admin-welcome__kicker">Administrator Dashboard</p>
               <h1>Welcome back, {displayName}!</h1>
-              <p>Moderate listings, manage users, and monitor platform health with live controls.</p>
+              <p>Full control over users, products, orders and farms.</p>
             </div>
             <div className="admin-welcome__actions">
               <span className="admin-chip">Admin</span>
-              <button type="button" className="admin-language" onClick={cycleLanguage}>
-                {language}
-                <span aria-hidden="true">v</span>
-              </button>
+              <button type="button" className="dash-btn dash-btn--compact" onClick={loadAll}>↻ Refresh</button>
             </div>
           </header>
 
-          {notice ? <div className={`dash-alert ${notice.type === 'danger' ? 'dash-alert--danger' : notice.type === 'warning' ? 'dash-alert--warning' : 'dash-alert--success'}`}>
-              <span>{notice.message}</span>
-              <button type="button" className="dash-btn dash-btn--compact" onClick={() => setNotice(null)}>Dismiss</button>
-            </div> : null}
+          {/* Notice */}
+          {notice && (
+            <div className={`dash-alert ${notice.type === 'danger' ? 'dash-alert--danger' : notice.type === 'warning' ? 'dash-alert--warning' : 'dash-alert--success'}`}>
+              <span>{notice.msg}</span>
+              <button type="button" className="dash-btn dash-btn--compact" onClick={() => setNotice(null)}>✕</button>
+            </div>
+          )}
 
+          {/* ── Stats ── */}
           <section className="admin-stats">
-            <article><div className="admin-stats__icon">U</div><div><h3>{users.length}</h3><p>Users</p><span>{filteredUsers.length} filtered</span></div></article>
-            <article><div className="admin-stats__icon">P</div><div><h3>{totalListings}</h3><p>Listings</p><span>{pendingValidationCount} pending review</span></div></article>
-            <article><div className="admin-stats__icon">R</div><div><h3>{formatDh(estimatedRevenueDh)}</h3><p>Est. Revenue</p><span>{approvedValidationCount} approved</span></div></article>
+            <article onClick={() => setSection('users')} style={{ cursor: 'pointer' }}>
+              <div className="admin-stats__icon">👥</div>
+              <div><h3>{stats.users}</h3><p>Users</p><span>{users.filter(u => u.role === 'farmer').length} farmers</span></div>
+            </article>
+            <article onClick={() => setSection('products')} style={{ cursor: 'pointer' }}>
+              <div className="admin-stats__icon">🌿</div>
+              <div><h3>{stats.products}</h3><p>Products</p><span>{products.filter(p => p.status === 'active').length} active</span></div>
+            </article>
+            <article onClick={() => setSection('orders')} style={{ cursor: 'pointer' }}>
+              <div className="admin-stats__icon">📦</div>
+              <div><h3>{stats.orders}</h3><p>Orders</p><span>{fmtDh(stats.revenue)} total</span></div>
+            </article>
+            <article onClick={() => setSection('farms')} style={{ cursor: 'pointer' }}>
+              <div className="admin-stats__icon">🏡</div>
+              <div><h3>{stats.farms}</h3><p>Farms</p><span>on the platform</span></div>
+            </article>
           </section>
 
-          {(activeSection === 'dashboard' || activeSection === 'users') ? <section className="admin-users">
+          {/* ════════════════════════════════════════════════════════
+              USERS SECTION
+          ════════════════════════════════════════════════════════ */}
+          {(section === 'dashboard' || section === 'users') && (
+            <section className="admin-users">
               <div className="admin-section__header admin-section__header--stack">
                 <div>
                   <h2>User Management</h2>
-                  <div className="dash-toolbar__meta">Search, filter and manage account lifecycle.</div>
+                  <div className="dash-toolbar__meta">{filteredUsers.length} users</div>
                 </div>
                 <div className="admin-users__tools">
-                  <div className="admin-search">
-                    <span className="admin-search__icon" aria-hidden="true" />
-                    <input type="search" placeholder="Search users..." value={userSearch} onChange={event => setUserSearch(event.target.value)} />
-                  </div>
-                  <select className="dash-select" value={roleFilter} onChange={event => setRoleFilter(event.target.value)}>
+                  <input className="dash-input" placeholder="Search users…" value={userSearch} onChange={e => setUserSearch(e.target.value)} style={{ minWidth: 180 }} />
+                  <select className="dash-select" value={userRoleFilter} onChange={e => setUserRoleFilter(e.target.value)}>
                     <option value="all">All roles</option>
-                    {adminRoleOptions.map(role => <option key={role} value={role}>{role}</option>)}
+                    <option value="buyer">Buyer</option>
+                    <option value="farmer">Farmer</option>
+                    <option value="admin">Admin</option>
                   </select>
-                  <select className="dash-select" value={userStatusFilter} onChange={event => setUserStatusFilter(event.target.value)}>
-                    <option value="all">All statuses</option>
-                    {adminStatusOptions.map(status => <option key={status} value={status}>{status}</option>)}
-                  </select>
-                  <button type="button" className="dash-btn dash-btn--primary" onClick={() => {
-                setUserDraft({
-                  name: '',
-                  email: '',
-                  role: 'Buyer',
-                  listings: '0',
-                  status: 'Active'
-                });
-                setShowUserEditor(true);
-                setActiveSection('users');
-              }}>Add User</button>
                 </div>
               </div>
 
               <div className="admin-table">
                 <div className="admin-table__head">
-                  <span>User</span>
-                  <span>Role</span>
-                  <span>Listings</span>
-                  <span>Actions</span>
+                  <span>User</span><span>Role</span><span>Status</span><span>Joined</span><span>Actions</span>
                 </div>
-                {displayedUsers.length ? displayedUsers.map(user => <div className={`admin-table__row${selectedUserEmail === user.email ? ' is-selected' : ''}`} key={user.email}>
-                      <div className="admin-user">
-                        <span className="admin-user__avatar" aria-hidden="true">{user.initials}</span>
-                        <div>
-                          <p className="admin-user__name">{user.name}</p>
-                          <p className="admin-user__email">{user.email}</p>
-                          <div className="admin-user__meta">
-                            <span className={statusBadge(user.status)}>{user.status}</span>
-                            <span className="dash-toolbar__meta">{user.verified ? 'Verified' : 'Unverified'}</span>
-                          </div>
-                        </div>
+                {filteredUsers.slice(0, section === 'users' ? 999 : 8).map(user => (
+                  <div key={user.id}
+                    className={`admin-table__row${selectedUserId === user.id ? ' is-selected' : ''}`}
+                    onClick={() => setSelectedUserId(user.id)}>
+                    <div className="admin-user">
+                      <span className="admin-user__avatar">{(user.full_name || user.email || '?')[0].toUpperCase()}</span>
+                      <div>
+                        <p className="admin-user__name">{user.full_name || '—'}</p>
+                        <p className="admin-user__email">{user.email}</p>
                       </div>
-                      <span className="admin-pill">{user.role}</span>
-                      <span className="admin-pill">{user.listings}</span>
-                      <div className="admin-actions">
-                        <button className="primary" type="button" onClick={() => openUserEditor(user)}>Manage</button>
-                        <button className="ghost" type="button" onClick={() => toggleUserStatus(user)}>
-                          {user.status === 'Suspended' ? 'Activate' : 'Suspend'}
-                        </button>
-                        <button className="dash-btn dash-btn--danger dash-btn--compact" type="button" onClick={() => deleteUser(user)}>Delete</button>
-                      </div>
-                    </div>) : <div className="dash-empty admin-users__empty">No users match the filters.</div>}
+                    </div>
+                    <span className={roleBadge(user.role)}>{user.role}</span>
+                    <span className={statusBadge(user.status ?? 'active')}>{user.status ?? 'active'}</span>
+                    <span style={{ fontSize: 12, color: '#888' }}>{fmtDate(user.created_at)}</span>
+                    <div className="admin-actions" onClick={e => e.stopPropagation()}>
+                      <button className="primary" type="button" onClick={() => setEditUser({ ...user })}>Edit</button>
+                      <button className="ghost" type="button" onClick={() => toggleUserStatus(user)}>
+                        {user.status === 'suspended' ? 'Activate' : 'Suspend'}
+                      </button>
+                      {user.role !== 'admin' && (
+                        <button className="ghost" type="button" onClick={() => makeAdmin(user)}>Make Admin</button>
+                      )}
+                      <button className="dash-btn dash-btn--danger dash-btn--compact" type="button" onClick={() => deleteUser(user)}>Delete</button>
+                    </div>
+                  </div>
+                ))}
               </div>
 
-              <div className="admin-users__footer">
-                <button className="admin-view" type="button" onClick={() => setShowAllUsers(value => !value)}>
-                  {showAllUsers ? 'Show Recent' : 'View All'}
-                </button>
-              </div>
-
-              {showUserEditor ? <div className="dash-section admin-users__editor">
+              {/* User detail panel */}
+              {selectedUser && (
+                <div className="dash-section" key={selectedUser.id} style={{ marginTop: 16 }}>
                   <div className="dash-toolbar">
                     <div>
-                      <p className="dash-section__title">{users.some(user => user.email === userDraft.email.trim().toLowerCase()) ? 'Edit User' : 'Create User'}</p>
-                      <p className="dash-section__subtitle">Update profile, role, listings and status.</p>
+                      <p className="dash-section__title">{selectedUser.full_name || selectedUser.email}</p>
+                      <p className="dash-section__subtitle">{selectedUser.email} · {selectedUser.role} · joined {fmtDate(selectedUser.created_at)}</p>
                     </div>
-                    <button type="button" className="dash-btn" onClick={() => setShowUserEditor(false)}>Close</button>
+                    <span className={roleBadge(selectedUser.role)}>{selectedUser.role}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                    <button type="button" className="dash-btn dash-btn--primary" onClick={() => setEditUser({ ...selectedUser })}>✏️ Edit User</button>
+                    <button type="button" className="dash-btn" onClick={() => toggleUserStatus(selectedUser)}>
+                      {selectedUser.status === 'suspended' ? '✅ Activate' : '🚫 Suspend'}
+                    </button>
+                    {selectedUser.role !== 'admin' && (
+                      <button type="button" className="dash-btn" onClick={() => makeAdmin(selectedUser)}>⭐ Make Admin</button>
+                    )}
+                    <button type="button" className="dash-btn dash-btn--danger" onClick={() => deleteUser(selectedUser)}>🗑 Delete</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Edit user modal */}
+              {editUser && (
+                <div className="dash-section" style={{ marginTop: 16 }}>
+                  <div className="dash-toolbar">
+                    <p className="dash-section__title">Edit User</p>
+                    <button type="button" className="dash-btn" onClick={() => setEditUser(null)}>Close</button>
                   </div>
                   <div className="dash-field-grid dash-field-grid--3">
-                    <label className="dash-label">Name<input className="dash-input" value={userDraft.name} onChange={event => setUserDraft(current => ({ ...current, name: event.target.value }))} /></label>
-                    <label className="dash-label">Email<input className="dash-input" value={userDraft.email} onChange={event => setUserDraft(current => ({ ...current, email: event.target.value }))} /></label>
-                    <label className="dash-label">Role<select className="dash-select" value={userDraft.role} onChange={event => setUserDraft(current => ({ ...current, role: event.target.value }))}>{adminRoleOptions.map(role => <option key={role} value={role}>{role}</option>)}</select></label>
-                    <label className="dash-label">Listings<input className="dash-input" type="number" min="0" value={userDraft.listings} onChange={event => setUserDraft(current => ({ ...current, listings: event.target.value }))} /></label>
-                    <label className="dash-label">Status<select className="dash-select" value={userDraft.status} onChange={event => setUserDraft(current => ({ ...current, status: event.target.value }))}>{adminStatusOptions.map(status => <option key={status} value={status}>{status}</option>)}</select></label>
+                    <label className="dash-label">Full Name
+                      <input className="dash-input" value={editUser.full_name ?? ''} onChange={e => setEditUser(p => ({ ...p, full_name: e.target.value }))} />
+                    </label>
+                    <label className="dash-label">Role
+                      <select className="dash-select" value={editUser.role ?? 'buyer'} onChange={e => setEditUser(p => ({ ...p, role: e.target.value }))}>
+                        <option value="buyer">Buyer</option>
+                        <option value="farmer">Farmer</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </label>
+                    <label className="dash-label">Status
+                      <select className="dash-select" value={editUser.status ?? 'active'} onChange={e => setEditUser(p => ({ ...p, status: e.target.value }))}>
+                        <option value="active">Active</option>
+                        <option value="suspended">Suspended</option>
+                      </select>
+                    </label>
                   </div>
                   <div className="dash-form-actions">
-                    <button type="button" className="dash-btn dash-btn--primary" onClick={saveUser}>Save User</button>
-                    {selectedUser ? <button type="button" className="dash-btn dash-btn--soft" onClick={() => toggleUserStatus(selectedUser)}>Toggle Selected Status</button> : null}
+                    <button type="button" className="dash-btn dash-btn--primary" onClick={saveUser}>💾 Save Changes</button>
+                    <button type="button" className="dash-btn dash-btn--danger" onClick={() => deleteUser(editUser)}>🗑 Delete User</button>
                   </div>
-                </div> : null}
-            </section> : null}
-
-          <section className="admin-panels">
-            {(activeSection === 'dashboard' || activeSection === 'validation' || activeSection === 'settings') ? <div className="admin-panel">
-                <div className="admin-panel__header admin-panel__header--split">
-                  <h2>{activeSection === 'settings' ? 'Platform Settings' : 'Product Validation'}</h2>
-                  {activeSection !== 'settings' ? <div className="dash-toolbar__group">
-                      <button type="button" className="dash-btn dash-btn--compact" onClick={() => setShowResolvedValidations(value => !value)}>
-                        {showResolvedValidations ? 'Hide Resolved' : 'Show Resolved'}
-                      </button>
-                      <button type="button" className="dash-btn dash-btn--compact" onClick={() => setActiveSection('validation')}>
-                        Focus
-                      </button>
-                    </div> : null}
                 </div>
+              )}
+            </section>
+          )}
 
-                {activeSection !== 'settings' ? <>
-                    <div className="admin-validation">
-                      {visibleValidations.map(item => <article className={selectedValidationId === item.id ? 'is-selected' : undefined} key={item.id}>
-                          <div className="admin-validation__media" aria-hidden="true" />
-                          <h3>{item.name}</h3>
-                          <p>{item.farmer}</p>
-                          <span>Location: {item.location}</span>
-                          <div className="admin-validation__badges">
-                            <span className={statusBadge(item.status)}>{item.status}</span>
-                            <span className={`dash-status ${item.riskScore === 'Low' ? 'dash-status--success' : 'dash-status--warning'}`}>{item.riskScore} Risk</span>
-                          </div>
-                          <button type="button" onClick={() => {
-                        setSelectedValidationId(item.id);
-                        setActiveSection('validation');
-                      }}>View</button>
-                        </article>)}
-                    </div>
+          {/* ════════════════════════════════════════════════════════
+              PRODUCTS SECTION
+          ════════════════════════════════════════════════════════ */}
+          {section === 'products' && (
+            <section className="admin-users">
+              <div className="admin-section__header admin-section__header--stack">
+                <div><h2>Products</h2><div className="dash-toolbar__meta">{filteredProducts.length} products</div></div>
+                <input className="dash-input" placeholder="Search products…" value={productSearch} onChange={e => setProductSearch(e.target.value)} style={{ minWidth: 220 }} />
+              </div>
 
-                    {selectedValidation ? <div className="dash-section admin-validation__detail">
-                        <div className="dash-toolbar">
-                          <div>
-                            <p className="dash-section__title">{selectedValidation.id} • {selectedValidation.name}</p>
-                            <p className="dash-section__subtitle">{selectedValidation.farmer} • {selectedValidation.location} • {selectedValidation.category}</p>
-                          </div>
-                          <span className={statusBadge(selectedValidation.status)}>{selectedValidation.status}</span>
-                        </div>
-                        <div className="admin-validation__meta-grid">
-                          <span>Qty: {selectedValidation.quantityKg} kg</span>
-                          <span>Price: {formatDh(selectedValidation.pricePerKg)}/kg</span>
-                          <span>Submitted: {formatStamp(selectedValidation.submittedAt)}</span>
-                        </div>
-                        <p className="dash-inline-note">{selectedValidation.note}</p>
-                        <label className="dash-label">
-                          Review comment
-                          <textarea className="dash-textarea" value={reviewComment} onChange={event => setReviewComment(event.target.value)} placeholder="Approval note or requested changes" />
-                        </label>
-                        <div className="dash-form-actions">
-                          <button type="button" className="dash-btn dash-btn--success" onClick={() => reviewValidation('Approved')}>Approve</button>
-                          <button type="button" className="dash-btn" onClick={() => reviewValidation('Changes Requested')}>Request Changes</button>
-                          <button type="button" className="dash-btn dash-btn--danger" onClick={() => reviewValidation('Rejected')}>Reject</button>
-                        </div>
-                      </div> : null}
-                  </> : <div className="admin-settings">
-                    <div className="dash-panel-stack">
-                      <div className="dash-switch">
-                        <div className="dash-switch__meta">
-                          <strong>Maintenance Mode</strong>
-                          <span>Pause new checkouts while keeping browsing active.</span>
-                        </div>
-                        <button type="button" className={`dash-btn dash-btn--compact ${settingsState.maintenanceMode ? 'dash-btn--danger' : 'dash-btn--success'}`} onClick={() => toggleSetting('maintenanceMode')}>
-                          {settingsState.maintenanceMode ? 'On' : 'Off'}
-                        </button>
-                      </div>
-                      <div className="dash-switch">
-                        <div className="dash-switch__meta">
-                          <strong>Auto-Approve Trusted Farmers</strong>
-                          <span>Skip manual moderation for trusted vendor listings.</span>
-                        </div>
-                        <button type="button" className={`dash-btn dash-btn--compact ${settingsState.autoApproveTrustedFarmers ? 'dash-btn--success' : ''}`} onClick={() => toggleSetting('autoApproveTrustedFarmers')}>
-                          {settingsState.autoApproveTrustedFarmers ? 'Enabled' : 'Disabled'}
-                        </button>
-                      </div>
-                      <div className="dash-switch">
-                        <div className="dash-switch__meta">
-                          <strong>Email Moderation Alerts</strong>
-                          <span>Notify admins when risk scoring or moderation queue spikes.</span>
-                        </div>
-                        <button type="button" className={`dash-btn dash-btn--compact ${settingsState.emailModerationAlerts ? 'dash-btn--success' : ''}`} onClick={() => toggleSetting('emailModerationAlerts')}>
-                          {settingsState.emailModerationAlerts ? 'Enabled' : 'Disabled'}
-                        </button>
-                      </div>
-                      <div className="dash-section">
-                        <p className="dash-section__title">Thresholds</p>
-                        <div className="dash-field-grid">
-                          <label className="dash-label">
-                            Max daily listings / farmer
-                            <input className="dash-input" type="number" min="1" value={settingsState.maxDailyListings} onChange={event => setSettingsState(current => ({
-                          ...current,
-                          maxDailyListings: Math.max(1, Number.parseInt(event.target.value, 10) || 1)
-                        }))} />
-                          </label>
-                          <label className="dash-label">
-                            Platform fee (%)
-                            <input className="dash-input" type="number" min="0" max="30" value={settingsState.platformFeePercent} onChange={event => setSettingsState(current => ({
-                          ...current,
-                          platformFeePercent: Math.min(30, Math.max(0, Number.parseInt(event.target.value, 10) || 0))
-                        }))} />
-                          </label>
-                        </div>
-                        <div className="dash-form-actions">
-                          <button type="button" className="dash-btn dash-btn--primary" onClick={() => {
-                        pushAudit('Saved platform settings', 'success');
-                        pushNotice('Platform settings saved.', 'success');
-                      }}>Save Settings</button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>}
-              </div> : null}
-
-            {(activeSection === 'dashboard' || activeSection === 'stats' || activeSection === 'settings') ? <div className="admin-panel">
-                <div className="admin-panel__header admin-panel__header--split">
-                  <h2>{activeSection === 'settings' ? 'Audit Log' : 'Platform Stats'}</h2>
-                  {activeSection !== 'settings' ? <div className="dash-tabs">
-                      {['weekly', 'monthly', 'quarterly'].map(range => <button key={range} type="button" className={`dash-tab${reportRange === range ? ' is-active' : ''}`} onClick={() => setReportRange(range)}>
-                          {range[0].toUpperCase() + range.slice(1)}
-                        </button>)}
-                    </div> : null}
+              <div className="admin-table">
+                <div className="admin-table__head">
+                  <span>Product</span><span>Farm</span><span>Price</span><span>Stock</span><span>Status</span><span>Actions</span>
                 </div>
+                {filteredProducts.map(p => (
+                  <div key={p.id}
+                    className={`admin-table__row${selectedProductId === p.id ? ' is-selected' : ''}`}
+                    onClick={() => setSelectedProductId(p.id)}>
+                    <div>
+                      <p style={{ fontWeight: 600, margin: 0 }}>{p.name}</p>
+                      <p style={{ fontSize: 12, color: '#888', margin: 0 }}>{p.category}</p>
+                    </div>
+                    <span style={{ fontSize: 13 }}>{p.farms?.name ?? '—'}</span>
+                    <span style={{ fontWeight: 600, color: '#4f7a46' }}>{p.price_dh} DH/{p.unit}</span>
+                    <span style={{ fontSize: 13 }}>{p.available_kg ?? p.available ?? 0} {p.unit}</span>
+                    <span className={statusBadge(p.status)}>{p.status}</span>
+                    <div className="admin-actions" onClick={e => e.stopPropagation()}>
+                      <button className="primary" type="button" onClick={() => setEditProduct({ ...p })}>Edit</button>
+                      <button className="ghost" type="button" onClick={() => toggleProductStatus(p)}>
+                        {p.status === 'active' ? 'Deactivate' : 'Activate'}
+                      </button>
+                      <button className="dash-btn dash-btn--danger dash-btn--compact" type="button" onClick={() => deleteProduct(p)}>Delete</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
 
-                {activeSection !== 'settings' ? <div className="admin-platform">
-                    <div className="admin-platform__summary">
-                      <div>
-                        <h3>{chartTotal}</h3>
-                        <p>{reportRange} traffic score</p>
-                      </div>
-                      <div>
-                        <h3>{formatDh(chartTotal * settingsState.platformFeePercent * 18)}</h3>
-                        <p>Projected fee revenue</p>
-                      </div>
+              {/* Edit product modal */}
+              {editProduct && (
+                <div className="dash-section" key={editProduct.id} style={{ marginTop: 16 }}>
+                  <div className="dash-toolbar">
+                    <p className="dash-section__title">Edit Product — {editProduct.name}</p>
+                    <button type="button" className="dash-btn" onClick={() => setEditProduct(null)}>Close</button>
+                  </div>
+                  <div className="dash-field-grid dash-field-grid--3">
+                    <label className="dash-label">Name
+                      <input className="dash-input" value={editProduct.name ?? ''} onChange={e => setEditProduct(p => ({ ...p, name: e.target.value }))} />
+                    </label>
+                    <label className="dash-label">Price (DH)
+                      <input className="dash-input" type="number" value={editProduct.price_dh ?? ''} onChange={e => setEditProduct(p => ({ ...p, price_dh: e.target.value }))} />
+                    </label>
+                    <label className="dash-label">Stock (kg)
+                      <input className="dash-input" type="number" value={editProduct.available_kg ?? editProduct.available ?? ''} onChange={e => setEditProduct(p => ({ ...p, available_kg: e.target.value }))} />
+                    </label>
+                    <label className="dash-label">Category
+                      <input className="dash-input" value={editProduct.category ?? ''} onChange={e => setEditProduct(p => ({ ...p, category: e.target.value }))} />
+                    </label>
+                    <label className="dash-label">Status
+                      <select className="dash-select" value={editProduct.status ?? 'active'} onChange={e => setEditProduct(p => ({ ...p, status: e.target.value }))}>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div className="dash-form-actions">
+                    <button type="button" className="dash-btn dash-btn--primary" onClick={saveProduct}>💾 Save Changes</button>
+                    <button type="button" className="dash-btn dash-btn--danger" onClick={() => deleteProduct(editProduct)}>🗑 Delete Product</button>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* ════════════════════════════════════════════════════════
+              ORDERS SECTION
+          ════════════════════════════════════════════════════════ */}
+          {section === 'orders' && (
+            <section className="admin-users">
+              <div className="admin-section__header admin-section__header--stack">
+                <div><h2>Orders</h2><div className="dash-toolbar__meta">{filteredOrders.length} orders</div></div>
+                <input className="dash-input" placeholder="Search by buyer, status, ID…" value={orderSearch} onChange={e => setOrderSearch(e.target.value)} style={{ minWidth: 240 }} />
+              </div>
+
+              <div className="admin-table">
+                <div className="admin-table__head">
+                  <span>Order ID</span><span>Buyer</span><span>Total</span><span>Status</span><span>Date</span><span>Actions</span>
+                </div>
+                {filteredOrders.map(o => (
+                  <div key={o.id}
+                    className={`admin-table__row${selectedOrderId === o.id ? ' is-selected' : ''}`}
+                    onClick={() => setSelectedOrderId(o.id)}>
+                    <span style={{ fontFamily: 'monospace', fontSize: 12 }}>#{o.id.slice(0,8).toUpperCase()}</span>
+                    <div>
+                      <p style={{ margin: 0, fontWeight: 600, fontSize: 13 }}>{o.profiles?.full_name ?? '—'}</p>
+                      <p style={{ margin: 0, fontSize: 12, color: '#888' }}>{o.profiles?.email}</p>
                     </div>
-                    <div className="admin-platform__chart admin-platform__chart--bars">
-                      <div className="dash-chart-bars">
-                        {chartSeries.map(item => <div className="dash-chart-bars__item" key={item.label}>
-                            <div className="dash-chart-bars__value">{item.value}</div>
-                            <div className="dash-chart-bars__col" style={{
-                          height: `${Math.max(18, Math.round(item.value / maxChartValue * 108))}px`
-                        }} />
-                            <div className="dash-chart-bars__label">{item.label}</div>
-                          </div>)}
-                      </div>
+                    <span style={{ fontWeight: 700, color: '#4f7a46' }}>{fmtDh(o.total_dh)}</span>
+                    <span className={statusBadge(o.status)}>{o.status}</span>
+                    <span style={{ fontSize: 12, color: '#888' }}>{fmtDate(o.created_at)}</span>
+                    <div className="admin-actions" onClick={e => e.stopPropagation()}>
+                      <select className="dash-select" style={{ fontSize: 12, padding: '2px 6px' }}
+                        value={o.status}
+                        onChange={e => updateOrderStatus(o, e.target.value)}>
+                        <option value="preparing">Preparing</option>
+                        <option value="in_transit">In Transit</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                      <button className="dash-btn dash-btn--danger dash-btn--compact" type="button" onClick={() => deleteOrder(o)}>Delete</button>
                     </div>
-                    <div className="dash-section">
-                      <p className="dash-section__title">Moderation throughput</p>
-                      <div className="dash-metric-bars">
-                        <div className="dash-metric-bars__row">
-                          <div className="dash-metric-bars__head"><span>Pending validations</span><span>{pendingValidationCount}</span></div>
-                          <div className="dash-metric-bars__track"><div className="dash-metric-bars__fill" style={{
-                        width: `${Math.max(10, Math.round(pendingValidationCount / Math.max(validations.length, 1) * 100))}%`
-                      }} /></div>
-                        </div>
-                        <div className="dash-metric-bars__row">
-                          <div className="dash-metric-bars__head"><span>Approved listings</span><span>{approvedValidationCount}</span></div>
-                          <div className="dash-metric-bars__track"><div className="dash-metric-bars__fill" style={{
-                        width: `${Math.max(10, Math.round(approvedValidationCount / Math.max(validations.length, 1) * 100))}%`
-                      }} /></div>
-                        </div>
-                      </div>
+                  </div>
+                ))}
+              </div>
+
+              {selectedOrder && (
+                <div className="dash-section" key={selectedOrder.id} style={{ marginTop: 16 }}>
+                  <div className="dash-toolbar">
+                    <div>
+                      <p className="dash-section__title">Order #{selectedOrder.id.slice(0,8).toUpperCase()}</p>
+                      <p className="dash-section__subtitle">
+                        {selectedOrder.profiles?.full_name} · {selectedOrder.profiles?.email} · {fmtDate(selectedOrder.created_at)}
+                      </p>
                     </div>
-                    <div className="admin-platform__footer">
-                      <span>{formatDh(estimatedRevenueDh)}</span>
-                      <div className="dash-toolbar__group">
-                        <button type="button" className="dash-btn" onClick={() => setActiveSection('stats')}>View Full Report</button>
-                        <button type="button" className="dash-btn dash-btn--primary" onClick={() => {
-                      pushAudit(`Exported ${reportRange} platform report`, 'success');
-                      pushNotice(`${reportRange} report export started (demo).`, 'success');
-                    }}>Export</button>
-                      </div>
+                    <span className={statusBadge(selectedOrder.status)}>{selectedOrder.status}</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 10, fontSize: 13 }}>
+                    <span><b>Total:</b> {fmtDh(selectedOrder.total_dh)}</span>
+                    <span><b>Payment:</b> {selectedOrder.payment_method}</span>
+                    <span><b>ETA:</b> {selectedOrder.eta ?? '—'}</span>
+                    {selectedOrder.shipping_address && (
+                      <span style={{ gridColumn: '1/-1' }}><b>Address:</b> {selectedOrder.shipping_address.address}, {selectedOrder.shipping_address.phone}</span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* ════════════════════════════════════════════════════════
+              FARMS SECTION
+          ════════════════════════════════════════════════════════ */}
+          {section === 'farms' && (
+            <section className="admin-users">
+              <div className="admin-section__header admin-section__header--stack">
+                <div><h2>Farms</h2><div className="dash-toolbar__meta">{farms.length} farms</div></div>
+              </div>
+
+              <div className="admin-table">
+                <div className="admin-table__head">
+                  <span>Farm</span><span>Owner</span><span>City</span><span>Created</span><span>Actions</span>
+                </div>
+                {farms.map(f => (
+                  <div key={f.id}
+                    className={`admin-table__row${selectedFarmId === f.id ? ' is-selected' : ''}`}
+                    onClick={() => setSelectedFarmId(f.id)}>
+                    <div>
+                      <p style={{ margin: 0, fontWeight: 600 }}>{f.name}</p>
+                      <p style={{ margin: 0, fontSize: 12, color: '#888' }}>{f.description?.slice(0, 60)}…</p>
                     </div>
-                  </div> : <div className="dash-panel-stack">
-                    <div className="dash-section">
-                      <p className="dash-section__title">Recent admin activity</p>
-                      <div className="dash-log">
-                        {auditLog.map(entry => <div className="dash-log__item" key={entry.id}>
-                            <p>{entry.text}</p>
-                            <div className="dash-log__time">{formatStamp(entry.createdAt)}</div>
-                          </div>)}
-                      </div>
+                    <div>
+                      <p style={{ margin: 0, fontSize: 13 }}>{f.profiles?.full_name ?? '—'}</p>
+                      <p style={{ margin: 0, fontSize: 12, color: '#888' }}>{f.profiles?.email}</p>
                     </div>
-                    <div className="dash-section">
-                      <p className="dash-section__title">Quick actions</p>
-                      <div className="dash-form-actions">
-                        <button type="button" className="dash-btn dash-btn--success" onClick={() => {
-                      pushAudit('Triggered moderation queue refresh', 'info');
-                      pushNotice('Moderation queue refreshed (demo).', 'success');
-                    }}>Refresh Queue</button>
-                        <button type="button" className="dash-btn" onClick={() => setActiveSection('users')}>Open Users</button>
-                        <button type="button" className="dash-btn" onClick={() => setActiveSection('validation')}>Open Validation</button>
-                      </div>
+                    <span style={{ fontSize: 13 }}>{f.city ?? '—'}</span>
+                    <span style={{ fontSize: 12, color: '#888' }}>{fmtDate(f.created_at)}</span>
+                    <div className="admin-actions" onClick={e => e.stopPropagation()}>
+                      <button className="dash-btn dash-btn--danger dash-btn--compact" type="button" onClick={() => deleteFarm(f)}>Delete</button>
                     </div>
-                  </div>}
-              </div> : null}
-          </section>
+                  </div>
+                ))}
+              </div>
+
+              {selectedFarm && (
+                <div className="dash-section" key={selectedFarm.id} style={{ marginTop: 16 }}>
+                  <div className="dash-toolbar">
+                    <div>
+                      <p className="dash-section__title">{selectedFarm.name}</p>
+                      <p className="dash-section__subtitle">{selectedFarm.city} · Owner: {selectedFarm.profiles?.full_name ?? selectedFarm.profiles?.email}</p>
+                    </div>
+                  </div>
+                  <p style={{ fontSize: 13, color: '#6d7a6b', marginTop: 8 }}>{selectedFarm.description}</p>
+                  <div style={{ marginTop: 10 }}>
+                    <strong style={{ fontSize: 13 }}>Products from this farm:</strong>
+                    <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {products.filter(p => p.farm_id === selectedFarm.id).map(p => (
+                        <span key={p.id} style={{ background: '#f0f4ee', borderRadius: 8, padding: '3px 10px', fontSize: 12, color: '#4f7a46' }}>
+                          {p.name} — {p.price_dh} DH
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ marginTop: 12 }}>
+                    <button type="button" className="dash-btn dash-btn--danger" onClick={() => deleteFarm(selectedFarm)}>🗑 Delete Farm</button>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
         </div>
       </div>
-    </div>;
+    </div>
+  );
 };
 
 export default AdminDashboardPage;
